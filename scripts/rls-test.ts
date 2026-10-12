@@ -313,6 +313,20 @@ async function main() {
     }
     record(badCounts.length === 0, "seed.sql row counts match buildSeed()", badCounts.join("; "));
 
+    // PI-2 tables have no seed rows, so check their columns against types.ts explicitly.
+    {
+      const pi2Drift = Object.entries(PI2_COLUMNS)
+        .filter(([t, cols]) => !sameSet(colMap.get(t) ?? [], [...BASE_COLS, ...cols]))
+        .map(([t]) => t);
+      record(pi2Drift.length === 0, "PI-2 tables have exactly the columns in types.ts", pi2Drift.join(", "));
+    }
+    await client.query(
+      PI2_FIXTURES.replaceAll("$1", `'${data.organizations[0].id}'`)
+        .replaceAll("$2", `'${SEED_USERS.bd1}'`)
+        .replaceAll("$3", `'${SEED_USERS.bd2}'`)
+        .replaceAll("$4", `'${SEED_USERS.admin}'`),
+    );
+
     // Superuser cannot rewrite history either (trigger, not just grants).
     {
       await client.query("begin");
@@ -367,6 +381,7 @@ async function main() {
         `got ${auditRows}`,
       );
       await s.expectError("select quote_lines.unit_cost directly → permission denied", "select unit_cost from quote_lines");
+      await pi2Checks(s, u);
       await s.expectError("update audit_log", "update audit_log set action = 'x'");
       await s.expectError("delete audit_log", "delete from audit_log");
     }
@@ -505,6 +520,24 @@ async function main() {
     const anon = new Session(client, "anon", null, "anon");
     await anon.expectError("cannot read opportunities", "select id from opportunities");
     await anon.expectError("cannot read quote_lines_client", "select id from quote_lines_client");
+    await anon.expectError("cannot read api_keys", "select id from api_keys");
+    await anon.expectError("cannot read webhook_subscriptions", "select id from webhook_subscriptions");
+
+    console.log("\nservice_role — PI-2 secrets");
+    {
+      await client.query("begin");
+      try {
+        await client.query("set local role service_role");
+        const r = await client.query(
+          "select access_token_enc from mail_connections union all select key_hash from api_keys union all select secret_enc from webhook_subscriptions",
+        );
+        record(r.rowCount === 6, `service_role reads every secret column (${r.rowCount})`);
+      } catch (e) {
+        record(false, "service_role reads every secret column", (e as PgError).message);
+      } finally {
+        await client.query("rollback");
+      }
+    }
   } finally {
     await client.end().catch(() => undefined);
     if (process.env.KEEP_DB) console.log(`\nkept database ${dbName}`);
@@ -517,6 +550,218 @@ async function main() {
     console.log("\nFailures:");
     for (const f of failures) console.log(`  - ${f}`);
     process.exit(1);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PI-2: Copilot runs, mail sync, API keys, webhooks
+// ---------------------------------------------------------------------------
+
+const BASE_COLS = ["id", "created_at", "updated_at", "created_by", "archived_at"];
+const PI2_COLUMNS: Record<string, string[]> = {
+  copilot_runs: [
+    "org_id",
+    "user_id",
+    "task",
+    "related_type",
+    "related_id",
+    "model",
+    "status",
+    "input_tokens",
+    "output_tokens",
+    "latency_ms",
+    "error",
+  ],
+  mail_connections: [
+    "org_id",
+    "user_id",
+    "provider",
+    "email",
+    "status",
+    "scopes",
+    "access_token_enc",
+    "refresh_token_enc",
+    "token_expires_at",
+    "last_synced_at",
+    "sync_cursor",
+    "last_error",
+  ],
+  synced_messages: [
+    "connection_id",
+    "user_id",
+    "provider_message_id",
+    "kind",
+    "direction",
+    "subject",
+    "from_address",
+    "to_addresses",
+    "occurred_at",
+    "activity_id",
+    "account_id",
+    "contact_id",
+  ],
+  api_keys: ["org_id", "user_id", "name", "prefix", "key_hash", "scopes", "last_used_at", "expires_at", "revoked_at"],
+  webhook_subscriptions: ["org_id", "url", "description", "events", "secret_enc", "active"],
+  webhook_deliveries: [
+    "subscription_id",
+    "event",
+    "event_id",
+    "payload",
+    "status",
+    "attempts",
+    "response_status",
+    "last_error",
+    "next_attempt_at",
+  ],
+};
+
+/** Fixed ids for the PI-2 fixture rows (inserted by the superuser; seed has none). */
+const F = {
+  runBd1: "a2000000-0000-4000-8000-000000000001",
+  runBd2: "a2000000-0000-4000-8000-000000000002",
+  mailBd1: "a2000000-0000-4000-8000-000000000011",
+  mailBd2: "a2000000-0000-4000-8000-000000000012",
+  msgBd1: "a2000000-0000-4000-8000-000000000021",
+  msgBd2: "a2000000-0000-4000-8000-000000000022",
+  keyBd1: "a2000000-0000-4000-8000-000000000031",
+  keyBd2: "a2000000-0000-4000-8000-000000000032",
+  keyAdmin: "a2000000-0000-4000-8000-000000000033",
+  hook: "a2000000-0000-4000-8000-000000000041",
+  delivery: "a2000000-0000-4000-8000-000000000051",
+};
+const HASH = (n: number) => String(n).repeat(64).slice(0, 64);
+
+const PI2_FIXTURES = `
+insert into copilot_runs (id, org_id, user_id, task, model, status) values
+  ('${F.runBd1}', $1, $2, 'account_summary', 'demo', 'demo'),
+  ('${F.runBd2}', $1, $3, 'followup_email', 'demo', 'demo');
+insert into mail_connections (id, org_id, user_id, provider, email, access_token_enc, refresh_token_enc) values
+  ('${F.mailBd1}', $1, $2, 'google', 'marcus@konnectorllc.com', 'v1.secret', 'v1.secret'),
+  ('${F.mailBd2}', $1, $3, 'microsoft', 'priya@konnectorllc.com', 'v1.secret', 'v1.secret');
+insert into synced_messages (id, connection_id, user_id, provider_message_id, kind, direction, subject, occurred_at) values
+  ('${F.msgBd1}', '${F.mailBd1}', $2, 'm-1', 'email', 'inbound', 'Hello', now()),
+  ('${F.msgBd2}', '${F.mailBd2}', $3, 'm-2', 'event', 'outbound', 'Kickoff', now());
+insert into api_keys (id, org_id, user_id, name, prefix, key_hash, scopes) values
+  ('${F.keyBd1}', $1, $2, 'Marcus laptop', 'aaaaaaaa', '${HASH(1)}', '{read}'),
+  ('${F.keyBd2}', $1, $3, 'Priya sheet', 'bbbbbbbb', '${HASH(2)}', '{read,write}'),
+  ('${F.keyAdmin}', $1, $4, 'Admin', 'cccccccc', '${HASH(3)}', '{read,write}');
+insert into webhook_subscriptions (id, org_id, url, events, secret_enc) values
+  ('${F.hook}', $1, 'https://accounting.example.com/hooks', '{account.created}', 'v1.secret');
+insert into webhook_deliveries (id, subscription_id, event, event_id, payload) values
+  ('${F.delivery}', '${F.hook}', 'account.created', gen_random_uuid(), '{}');
+`;
+
+const OWN: Record<string, { run?: string; mail?: string; msg?: string; key?: string }> = {
+  [SEED_USERS.bd1]: { run: F.runBd1, mail: F.mailBd1, msg: F.msgBd1, key: F.keyBd1 },
+  [SEED_USERS.bd2]: { run: F.runBd2, mail: F.mailBd2, msg: F.msgBd2, key: F.keyBd2 },
+  [SEED_USERS.admin]: { key: F.keyAdmin },
+};
+
+/** Per-role PI-2 assertions. Every write runs in a rolled-back transaction. */
+async function pi2Checks(s: Session, u: Who) {
+  const leader = u.role === "admin" || u.role === "executive";
+  const admin = u.role === "admin";
+  const own = OWN[u.id] ?? {};
+  const org = data.organizations[0].id;
+  const other = u.id === SEED_USERS.bd1 ? SEED_USERS.bd2 : SEED_USERS.bd1;
+  const ownOr = (id: string | undefined, all: string[]) => (leader ? all : id ? [id] : []);
+
+  // copilot_runs: own + leaders; insert as self only; no update/delete.
+  await s.expectIds("copilot_runs = own (leaders: all)", "select id from copilot_runs", ownOr(own.run, [F.runBd1, F.runBd2]));
+  await s.expectRowCount(
+    "copilot_runs: insert as self",
+    "insert into copilot_runs (org_id, user_id, task, model, status) values ($1, $2, 'rfp_checklist', 'demo', 'demo')",
+    [org, u.id],
+    1,
+  );
+  await s.expectError(
+    "copilot_runs: insert as someone else",
+    "insert into copilot_runs (org_id, user_id, task, model, status) values ($1, $2, 'rfp_checklist', 'demo', 'demo')",
+    [org, other],
+  );
+  await s.expectError("copilot_runs: update", "update copilot_runs set status = 'error'");
+  await s.expectError("copilot_runs: delete", "delete from copilot_runs");
+
+  // mail_connections: own row only, tokens never selectable, no inserts.
+  await s.expectIds(
+    "mail_connections (non-secret columns) = own only",
+    "select id, email, status, scopes from mail_connections",
+    own.mail ? [own.mail] : [],
+  );
+  await s.expectError("mail_connections.access_token_enc → permission denied", "select access_token_enc from mail_connections");
+  await s.expectError("mail_connections.refresh_token_enc → permission denied", "select refresh_token_enc from mail_connections");
+  await s.expectError("mail_connections select * → permission denied", "select * from mail_connections");
+  await s.expectError(
+    "mail_connections: insert (service role only)",
+    "insert into mail_connections (org_id, user_id, provider, email) values ($1, $2, 'google', 'x@konnectorllc.com')",
+    [org, u.id],
+  );
+  await s.expectRowCount(
+    "mail_connections: disconnect own (status + tokens nulled)",
+    "update mail_connections set status = 'revoked', access_token_enc = null, refresh_token_enc = null where user_id = $1",
+    [u.id],
+    own.mail ? 1 : 0,
+  );
+  await s.expectRowCount(
+    "mail_connections: cannot touch others' rows",
+    "update mail_connections set status = 'error' where user_id <> $1",
+    [u.id],
+    0,
+  );
+  await s.expectRowCount("mail_connections: cannot delete others' rows", "delete from mail_connections where user_id <> $1", [u.id], 0);
+
+  // synced_messages: own + leaders; read-only.
+  await s.expectIds("synced_messages = own (leaders: all)", "select id from synced_messages", ownOr(own.msg, [F.msgBd1, F.msgBd2]));
+  await s.expectError("synced_messages: update (service role only)", "update synced_messages set subject = 'x'");
+  await s.expectError(
+    "synced_messages: insert (service role only)",
+    `insert into synced_messages (connection_id, user_id, provider_message_id, kind, direction, subject, occurred_at)
+     values ('${F.mailBd1}', $1, 'x', 'email', 'inbound', 'x', now())`,
+    [u.id],
+  );
+
+  // api_keys: own (admin: all), key_hash never selectable, revoke = update own.
+  await s.expectIds(
+    "api_keys = own (admin: all)",
+    "select id, prefix, scopes, revoked_at from api_keys",
+    admin ? [F.keyBd1, F.keyBd2, F.keyAdmin] : own.key ? [own.key] : [],
+  );
+  await s.expectError("api_keys.key_hash → permission denied", "select key_hash from api_keys");
+  await s.expectError("api_keys select * → permission denied", "select * from api_keys");
+  await s.expectRowCount(
+    "api_keys: create own key",
+    "insert into api_keys (org_id, user_id, name, prefix, key_hash, scopes) values ($1, $2, 'test', 'zzzzzzzz', $3, '{read}')",
+    [org, u.id, HASH(9)],
+    1,
+  );
+  await s.expectError(
+    "api_keys: create a key for someone else",
+    "insert into api_keys (org_id, user_id, name, prefix, key_hash, scopes) values ($1, $2, 'test', 'yyyyyyyy', $3, '{read}')",
+    [org, other, HASH(8)],
+  );
+  await s.expectRowCount("api_keys: revoke own", "update api_keys set revoked_at = now() where user_id = $1", [u.id], own.key ? 1 : 0);
+  await s.expectRowCount("api_keys: cannot revoke others'", "update api_keys set revoked_at = now() where user_id <> $1", [u.id], 0);
+  await s.expectError("api_keys: cannot rewrite key_hash", "update api_keys set key_hash = $1", [HASH(7)]);
+  await s.expectError("api_keys: no delete (revoke instead)", "delete from api_keys");
+
+  // webhooks: admin only; secret_enc never selectable.
+  await s.expectIds(
+    "webhook_subscriptions = admin only",
+    "select id, url, events, active from webhook_subscriptions",
+    admin ? [F.hook] : [],
+  );
+  await s.expectIds("webhook_deliveries = admin only", "select id from webhook_deliveries", admin ? [F.delivery] : []);
+  await s.expectError("webhook_subscriptions.secret_enc → permission denied", "select secret_enc from webhook_subscriptions");
+  const insertHook =
+    "insert into webhook_subscriptions (org_id, url, events, secret_enc) values ($1, 'https://x.example.com', '{account.updated}', 'v1.x')";
+  if (admin) {
+    await s.expectRowCount("webhook_subscriptions: admin creates", insertHook, [org], 1);
+    await s.expectRowCount("webhook_subscriptions: admin disables", "update webhook_subscriptions set active = false", [], 1);
+    await s.expectRowCount("webhook_deliveries: admin deletes", "delete from webhook_deliveries", [], 1);
+  } else {
+    await s.expectError("webhook_subscriptions: insert (admin only)", insertHook, [org]);
+    await s.expectRowCount("webhook_subscriptions: update (admin only)", "update webhook_subscriptions set active = false", [], 0);
+    await s.expectRowCount("webhook_deliveries: delete (admin only)", "delete from webhook_deliveries", [], 0);
   }
 }
 
