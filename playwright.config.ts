@@ -27,6 +27,7 @@ export default defineConfig({
       MOCK_KONNECT_HUB: "true",
       KONNECT_HUB_BASE_URL: `http://localhost:${PORT}/api/mock-konnect-hub`,
       CRON_SECRET: "e2e-cron",
+      COPILOT_MODE: "demo",
     },
   },
 });

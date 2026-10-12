@@ -1,0 +1,20 @@
+{
+  "id": "18f2a1b2c3d4e5f6",
+  "threadId": "18f2a1b2c3d4e5f6",
+  "labelIds": ["INBOX", "UNREAD"],
+  "snippet": "Thanks for the phased plan. Wave 1 on the service desk works for us &amp; we&#39;d like a rehearsal.",
+  "sizeEstimate": 5123,
+  "historyId": "123456",
+  "internalDate": "1791817200000",
+  "payload": {
+    "mimeType": "multipart/alternative",
+    "headers": [
+      { "name": "From", "value": "\"Walker, Denise\" <Denise.Walker@gta.example.gov>" },
+      { "name": "To", "value": "Marcus Bell <marcus.bell@konnectorllc.com>" },
+      { "name": "Cc", "value": "keisha.adams@gta.example.gov, Robert Nguyen <robert.nguyen@gta.example.gov>" },
+      { "name": "Subject", "value": "Re: Phased migration plan for ITSM" },
+      { "name": "Date", "value": "Mon, 12 Oct 2026 09:00:00 -0400" },
+      { "name": "Message-ID", "value": "<CAF=abc@mail.gmail.com>" }
+    ]
+  }
+}

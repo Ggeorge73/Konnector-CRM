@@ -60,8 +60,11 @@ Pull Request → Testing → Done, same as DiamondEcho). Move tickets as work pr
 ## Jobs and integration
 
 - `POST /api/cron/integrations` (every 5 min) — retry due Konnect Hub deliveries. `POST /api/cron/daily` —
-  client-item expiry + nudges, registration/vetting reminders, email digests. Both need `Authorization: Bearer $CRON_SECRET`.
-- Contract and event list: `docs/INTEGRATION.md`. Database and RLS: `docs/DATABASE.md`.
+  client-item expiry + nudges, registration/vetting reminders, email digests. `POST /api/cron/mail-sync` (every 15 min) —
+  mailbox/calendar sync. All need `Authorization: Bearer $CRON_SECRET`. The integrations cron also retries webhooks.
+- PI-2: Copilot (`lib/copilot`, `docs/COPILOT.md`; Claude API server-side only, demo without `ANTHROPIC_API_KEY`),
+  mail sync (`lib/mail`, `docs/MAIL.md`), REST API v1 + webhooks (`lib/api`, `docs/API.md`, `/developer`).
+- Contract and event list: `docs/INTEGRATION.md`. PI-2 plan: `docs/PI-2.md`. Database and RLS: `docs/DATABASE.md`.
 - Before pushing: `pnpm verify` (typecheck, lint, format:check, unit tests), then `pnpm build && pnpm test:e2e`.
   Parallel runs: `NEXT_DIST_DIR=.next-x E2E_PORT=34xx PW_OUTPUT=test-results-x`. Never commit the
   `tsconfig.json` include that Next adds for a custom dist dir.

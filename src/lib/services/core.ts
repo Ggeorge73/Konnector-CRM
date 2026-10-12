@@ -21,6 +21,7 @@ import {
 import { audit, diff } from "./audit";
 import type { Ctx } from "./context-types";
 import { actorId } from "./system";
+import { emitEvent, webhookData } from "./webhooks";
 
 // ---------------- Scoping ----------------
 
@@ -110,6 +111,7 @@ export async function createAccount(c: Ctx, input: AccountInputT): Promise<Accou
   });
   await audit(c, "account.created", "accounts", row.id, null, { name: row.name, owner_id: row.owner_id });
   await logActivity(c, { type: "system", subject: "Account created", related_type: "account", related_id: row.id, account_id: row.id });
+  await emitEvent(c, "account.created", webhookData.account(row));
   return row;
 }
 
@@ -122,6 +124,7 @@ export async function updateAccount(c: Ctx, id: string, patch: Partial<AccountIn
   if (!d.changed) return a;
   const row = await c.store.update("accounts", id, v as Partial<Account>);
   if ("owner_id" in d.after) await audit(c, "account.owner_changed", "accounts", id, d.before, d.after);
+  await emitEvent(c, "account.updated", webhookData.account(row, Object.keys(d.after)));
   return row;
 }
 

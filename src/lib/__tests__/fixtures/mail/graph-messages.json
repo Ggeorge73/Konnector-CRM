@@ -1,0 +1,17 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('me')/messages(id,subject,bodyPreview,receivedDateTime,sentDateTime,from,toRecipients,ccRecipients)",
+  "value": [
+    {
+      "@odata.etag": "W/\"CQAAABYAAAA\"",
+      "id": "AAkALgAAAAAAHYQDEapmEc2byACqAC-EWg0AImmutable1",
+      "subject": "DOR clarification timeline",
+      "bodyPreview": "Clarification answers will be posted on the 20th.",
+      "receivedDateTime": "2026-10-09T14:30:00Z",
+      "sentDateTime": "2026-10-09T14:29:58Z",
+      "from": { "emailAddress": { "name": "Angela Price", "address": "Angela.Price@dor.example.gov" } },
+      "toRecipients": [{ "emailAddress": { "name": "Marcus Bell", "address": "marcus.bell@konnectorllc.com" } }],
+      "ccRecipients": []
+    }
+  ],
+  "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/messages?%24skip=50&%24top=50"
+}

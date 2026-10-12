@@ -44,6 +44,12 @@ export const TABLE_ORDER: TableName[] = [
   "client_items",
   "integration_events",
   "audit_log",
+  "copilot_runs",
+  "mail_connections",
+  "synced_messages",
+  "api_keys",
+  "webhook_subscriptions",
+  "webhook_deliveries",
 ];
 
 /** Array columns and their Postgres element type; everything else that is an array/object is jsonb. */

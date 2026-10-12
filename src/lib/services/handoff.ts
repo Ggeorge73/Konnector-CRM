@@ -15,6 +15,7 @@ import { audit } from "./audit";
 import type { Ctx } from "./context-types";
 import { getAccount, logActivity, notify } from "./core";
 import { getOpportunity } from "./capture";
+import { emitEvent, webhookData } from "./webhooks";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date");
 
@@ -148,6 +149,7 @@ async function applyDelivery(c: Ctx, handoffId: string, event: Awaited<ReturnTyp
       { status: "acknowledged", konnect_hub_project_id: ack.konnect_hub_project_id },
     );
     await notify(c, o.owner_id, "handoff", `${o.name} is live in Konnect Hub`, `/opportunities/${o.id}`);
+    await emitEvent(c, "handoff.acknowledged", webhookData.handoff(row, o.account_id));
     return row;
   }
   const next = (event.response as { next_attempt_at?: string } | null)?.next_attempt_at ?? null;

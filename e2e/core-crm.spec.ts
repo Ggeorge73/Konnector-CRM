@@ -70,7 +70,8 @@ test.describe("core CRM", () => {
     await page.keyboard.press("Control+k");
     await page.getByRole("combobox", { name: "Search" }).fill("Jasmine");
     await page.getByRole("option", { name: /Jasmine Carter/ }).click();
-    await expect(page.getByRole("heading", { name: "Jasmine Carter" })).toBeVisible();
+    // First visit to a record page on a fresh server can take a few seconds.
+    await expect(page.getByRole("heading", { name: "Jasmine Carter" })).toBeVisible({ timeout: 15_000 });
   });
 
   test("admin sees the audit log after an ownership change", async ({ page }) => {

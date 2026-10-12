@@ -19,6 +19,7 @@ import { createTask, getAccount, logActivity, notify, visibleAccounts } from "./
 import { sendProjectExtended, signedFileUrl, startHandoff } from "./handoff";
 import { orgSettings } from "./pulse";
 import { actorId } from "./system";
+import { emitEvent, webhookData } from "./webhooks";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date");
 const g = globalThis as unknown as { __kcrmBlobs?: Map<string, Uint8Array> };
@@ -468,6 +469,7 @@ export async function onDecided(
     `/client-items/${item.id}`,
     e.note ?? null,
   );
+  await emitEvent(c, "client_item.decided", webhookData.clientItem(row));
   const effects: string[] = [];
 
   if (e.decision === "changes_requested") {

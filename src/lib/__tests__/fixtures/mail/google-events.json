@@ -1,0 +1,29 @@
+{
+  "kind": "calendar#events",
+  "summary": "marcus.bell@konnectorllc.com",
+  "items": [
+    {
+      "kind": "calendar#event",
+      "id": "7kq1c2d3e4f5g6h7",
+      "status": "confirmed",
+      "summary": "Permit backlog working session",
+      "description": "<p>Walk through <b>permit SLA</b> data.</p>",
+      "start": { "dateTime": "2026-10-10T11:00:00-04:00", "timeZone": "America/New_York" },
+      "end": { "dateTime": "2026-10-10T12:00:00-04:00", "timeZone": "America/New_York" },
+      "organizer": { "email": "marcus.bell@konnectorllc.com", "self": true },
+      "attendees": [
+        { "email": "marcus.bell@konnectorllc.com", "self": true, "responseStatus": "accepted" },
+        { "email": "Jasmine.Carter@atl.example.gov", "responseStatus": "accepted" }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "id": "allday123",
+      "status": "cancelled",
+      "summary": "Offsite",
+      "start": { "date": "2026-10-20" },
+      "end": { "date": "2026-10-21" }
+    }
+  ],
+  "nextPageToken": "CigKGjdrcTFj"
+}

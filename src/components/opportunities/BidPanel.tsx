@@ -21,6 +21,7 @@ export function BidPanel({
   canEdit,
   canApprove,
   names,
+  suggested,
 }: {
   opportunityId: string;
   bids: { visible: boolean; decisions: BidDecision[] };
@@ -28,9 +29,11 @@ export function BidPanel({
   canEdit: boolean;
   canApprove: boolean;
   names: Map<string, string>;
+  /** Copilot-suggested scores to pre-fill; the user still reviews and submits. */
+  suggested?: Record<BidCriterion, number> | null;
 }) {
   const latest = bids.decisions[0] ?? null;
-  const [scores, setScores] = useState<Record<BidCriterion, number>>(latest?.scores ?? defaultScores());
+  const [scores, setScores] = useState<Record<BidCriterion, number>>(suggested ?? latest?.scores ?? defaultScores());
   const [notes, setNotes] = useState("");
   const [execNote, setExecNote] = useState("");
   const submit = useAction(submitBidAction, { success: "Scorecard submitted for executive approval" });

@@ -455,6 +455,109 @@ export interface IntegrationEvent extends BaseRow {
   response: Record<string, unknown> | null;
 }
 
+// ---------- PI-2: Copilot, mail/calendar sync, REST API & webhooks ----------
+
+export const COPILOT_TASKS = ["account_summary", "followup_email", "bid_suggestion", "notes_to_tasks", "rfp_checklist"] as const;
+export type CopilotTask = (typeof COPILOT_TASKS)[number];
+
+/** One Copilot request: who asked, about what, and what it cost. Never stores the prompt or output text. */
+export interface CopilotRun extends BaseRow {
+  org_id: string;
+  user_id: string;
+  task: CopilotTask;
+  related_type: RelatedType | null;
+  related_id: string | null;
+  model: string;
+  status: "ok" | "refused" | "error" | "demo";
+  input_tokens: number;
+  output_tokens: number;
+  latency_ms: number;
+  error: string | null;
+}
+
+export type MailProvider = "google" | "microsoft";
+
+/** A user's own mailbox/calendar connection. Tokens are encrypted at rest and never sent to the browser. */
+export interface MailConnection extends BaseRow {
+  org_id: string;
+  user_id: string;
+  provider: MailProvider;
+  email: string;
+  status: "active" | "revoked" | "error";
+  scopes: string[];
+  access_token_enc: string | null;
+  refresh_token_enc: string | null;
+  token_expires_at: string | null;
+  last_synced_at: string | null;
+  sync_cursor: Record<string, unknown>;
+  last_error: string | null;
+}
+
+/** A message or calendar event pulled from a connection and linked to the timeline. */
+export interface SyncedMessage extends BaseRow {
+  connection_id: string;
+  user_id: string;
+  provider_message_id: string;
+  kind: "email" | "event";
+  direction: "inbound" | "outbound";
+  subject: string;
+  from_address: string | null;
+  to_addresses: string[];
+  occurred_at: string;
+  activity_id: string | null;
+  account_id: string | null;
+  contact_id: string | null;
+}
+
+export const API_SCOPES = ["read", "write"] as const;
+export type ApiScope = (typeof API_SCOPES)[number];
+
+/** Personal API key. Only a SHA-256 hash and a short display prefix are stored. */
+export interface ApiKey extends BaseRow {
+  org_id: string;
+  user_id: string;
+  name: string;
+  prefix: string;
+  key_hash: string;
+  scopes: ApiScope[];
+  last_used_at: string | null;
+  expires_at: string | null;
+  revoked_at: string | null;
+}
+
+export const WEBHOOK_EVENTS = [
+  "account.created",
+  "account.updated",
+  "opportunity.created",
+  "opportunity.stage_changed",
+  "quote.status_changed",
+  "client_item.decided",
+  "handoff.acknowledged",
+] as const;
+export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
+
+/** Outbound webhook subscription for other internal tools (accounting, e-signature…). Admin-managed. */
+export interface WebhookSubscription extends BaseRow {
+  org_id: string;
+  url: string;
+  description: string | null;
+  events: WebhookEvent[];
+  secret_enc: string;
+  active: boolean;
+}
+
+export interface WebhookDelivery extends BaseRow {
+  subscription_id: string;
+  event: WebhookEvent;
+  event_id: string;
+  payload: Record<string, unknown>;
+  status: "pending" | "delivered" | "failed";
+  attempts: number;
+  response_status: number | null;
+  last_error: string | null;
+  next_attempt_at: string | null;
+}
+
 export interface Tables {
   organizations: Organization;
   users: User;
@@ -483,6 +586,12 @@ export interface Tables {
   project_health: ProjectHealth;
   client_items: ClientItem;
   integration_events: IntegrationEvent;
+  copilot_runs: CopilotRun;
+  mail_connections: MailConnection;
+  synced_messages: SyncedMessage;
+  api_keys: ApiKey;
+  webhook_subscriptions: WebhookSubscription;
+  webhook_deliveries: WebhookDelivery;
 }
 
 export type TableName = keyof Tables;
