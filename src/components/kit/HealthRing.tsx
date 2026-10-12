@@ -6,7 +6,7 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 import type { Rag } from "@/lib/domain/types";
-import { relative } from "@/lib/format";
+import { RelTime } from "./RelTime";
 
 export interface HealthRingProps {
   schedule: Rag;
@@ -83,7 +83,11 @@ export function HealthRing({ schedule, budget, acceptance, percentComplete, upda
             </Typography>
           </Stack>
         ))}
-        {updatedAt && <Typography variant="caption">Updated {relative(updatedAt)} by Konnect Hub</Typography>}
+        {updatedAt && (
+          <Typography variant="caption">
+            Updated <RelTime value={updatedAt} /> by Konnect Hub
+          </Typography>
+        )}
         {hubUrl && (
           <Link
             href={hubUrl}

@@ -11,3 +11,4 @@ export * from "./Timeline";
 export * from "./ScoreCard";
 export * from "./DataTable";
 export * from "./KanbanBoard";
+export * from "./RelTime";

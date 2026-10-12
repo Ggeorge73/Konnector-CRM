@@ -27,7 +27,7 @@ export const NAV: NavItem[] = [
 ];
 
 /** Routes that have shipped. Grows sprint by sprint so the nav never links to an unbuilt page. */
-export const SHIPPED = new Set(["/"]);
+export const SHIPPED = new Set(["/", "/my-work", "/accounts", "/contacts", "/audit"]);
 
 export function navFor(role: Role) {
   return NAV.filter((n) => {

@@ -4,6 +4,7 @@ import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider } from "@mui/material/styles";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { ToastProvider } from "@/components/common/Toast";
 import type { Mode } from "@/theme/tokens";
 import { buildTheme } from "@/theme/theme";
 
@@ -28,7 +29,9 @@ export function ThemeRegistry({ initialMode, children }: { initialMode: Mode; ch
       <ModeContext.Provider value={{ mode, toggle }}>
         <ThemeProvider theme={theme}>
           <CssBaseline />
-          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+          <QueryClientProvider client={queryClient}>
+            <ToastProvider>{children}</ToastProvider>
+          </QueryClientProvider>
         </ThemeProvider>
       </ModeContext.Provider>
     </AppRouterCacheProvider>
