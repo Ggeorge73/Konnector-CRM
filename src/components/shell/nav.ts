@@ -42,6 +42,9 @@ export const SHIPPED = new Set([
   "/registrations",
   "/vetting",
   "/settings",
+  "/client-items",
+  "/bench",
+  "/events",
 ]);
 
 export function navFor(role: Role) {

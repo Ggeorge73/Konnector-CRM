@@ -10,7 +10,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!verifyFileSignature(id, req.nextUrl.searchParams.get("exp"), req.nextUrl.searchParams.get("sig"))) {
     return NextResponse.json({ error: "Link expired or invalid" }, { status: 403 });
   }
-  const { file, bytes } = await readFile(await systemCtx(systemStore()), id);
+  const { file, bytes } = await readFile(await systemCtx(systemStore()), id, { skipAccessCheck: true }); // the HMAC link is the authorisation
   return new NextResponse(Buffer.from(bytes), {
     headers: { "Content-Type": file.mime, "Content-Disposition": `attachment; filename="${encodeURIComponent(file.name)}"` },
   });
