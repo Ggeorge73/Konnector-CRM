@@ -20,9 +20,13 @@ test.describe("capture pipeline", () => {
     await signIn(page, "bd2");
     await page.goto("/opportunities");
     await drag(page, "Utility Billing Upgrade", "Qualify");
-    await expect(page.getByRole("region", { name: /^Qualify column/ }).getByRole("link", { name: "Utility Billing Upgrade" })).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: /^Qualify column/ }).getByRole("link", { name: "Utility Billing Upgrade" }),
+    ).toBeVisible();
     await page.reload();
-    await expect(page.getByRole("region", { name: /^Qualify column/ }).getByRole("link", { name: "Utility Billing Upgrade" })).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: /^Qualify column/ }).getByRole("link", { name: "Utility Billing Upgrade" }),
+    ).toBeVisible();
   });
 
   test("moving to Lost opens the stage gate and requires a reason", async ({ page }) => {

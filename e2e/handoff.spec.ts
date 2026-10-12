@@ -3,7 +3,11 @@ import { expect, signIn, test } from "./fixtures";
 test("delivery lead hands a won deal off to Konnect Hub, then health flows back", async ({ page, request }) => {
   await signIn(page, "delivery");
   await page.goto("/opportunities?view=table&open=false");
-  await page.getByRole("switch", { name: /Include closed/ }).or(page.getByLabel("Include closed")).first().check();
+  await page
+    .getByRole("switch", { name: /Include closed/ })
+    .or(page.getByLabel("Include closed"))
+    .first()
+    .check();
   await page.getByRole("link", { name: "EHR Integration Hub" }).click();
   await page.getByRole("button", { name: "Hand off to Konnect Hub" }).click();
   await page.getByRole("button", { name: "Start handoff" }).click();
@@ -22,7 +26,16 @@ test("delivery lead hands a won deal off to Konnect Hub, then health flows back"
 
   // Konnect Hub (mock) reports health back through the signed inbound webhook.
   const r = await request.post("/api/mock-konnect-hub/simulate", {
-    data: { event: "project.health_updated", konnect_hub_project_id: project, health_schedule: "green", health_budget: "amber", health_acceptance: "green", percent_complete: 12, status: "in_progress", updated_at: new Date().toISOString() },
+    data: {
+      event: "project.health_updated",
+      konnect_hub_project_id: project,
+      health_schedule: "green",
+      health_budget: "amber",
+      health_acceptance: "green",
+      percent_complete: 12,
+      status: "in_progress",
+      updated_at: new Date().toISOString(),
+    },
   });
   expect(r.ok()).toBe(true);
   await page.reload();
