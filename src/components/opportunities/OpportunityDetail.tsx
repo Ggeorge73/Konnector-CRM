@@ -40,6 +40,7 @@ import type {
 } from "@/lib/domain/types";
 import { dateLabel, humanize, money, pct } from "@/lib/format";
 import type { QuoteView } from "@/lib/services/capture";
+import { CopilotButton } from "@/components/copilot/CopilotPanel";
 import { BidPanel } from "./BidPanel";
 import { OpportunityFormDialog } from "./OpportunityFormDialog";
 
@@ -89,6 +90,7 @@ export function OpportunityDetail(p: OpportunityDetailProps) {
     [o.kind, o.stage, p.staffing, p.bids.decisions.length, p.quotes.length, p.handoff, p.timeline.length, p.tasks, p.files.length],
   );
   const [tab, setTab] = useState(p.openHandoff ? "handoff" : tabs.some((t) => t.key === p.initialTab) ? p.initialTab! : "overview");
+  const [suggested, setSuggested] = useState<{ scores: Record<BidCriterion, number>; n: number } | null>(null);
   const [editing, setEditing] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [stageEl, setStageEl] = useState<HTMLElement | null>(null);
@@ -159,6 +161,22 @@ export function OpportunityDetail(p: OpportunityDetailProps) {
         ]}
         actions={
           <>
+            <CopilotButton
+              record={{
+                type: "opportunity",
+                id: o.id,
+                name: o.name,
+                accountId: p.account.id,
+                // Only while the scorecard is editable (not waiting on executive approval).
+                canBid:
+                  p.bids.visible && p.canEdit && tabs.some((t) => t.key === "bid") && p.bids.decisions[0]?.status !== "pending_approval",
+                pdfs: p.files.filter((f) => f.mime === "application/pdf").map((f) => ({ id: f.id, name: f.name })),
+                onUseScores: (scores) => {
+                  setSuggested((x) => ({ scores, n: (x?.n ?? 0) + 1 }));
+                  setTab("bid");
+                },
+              }}
+            />
             {o.stage === "won" && !p.handoff && p.canHandoff && (
               <Button variant="contained" color="gold" onClick={() => setTab("handoff")}>
                 Hand off to Konnect Hub
@@ -281,7 +299,16 @@ export function OpportunityDetail(p: OpportunityDetailProps) {
       )}
 
       {tab === "bid" && (
-        <BidPanel opportunityId={o.id} bids={p.bids} weights={p.weights} canEdit={p.canEdit} canApprove={p.canApprove} names={names} />
+        <BidPanel
+          key={suggested?.n ?? 0}
+          suggested={suggested?.scores}
+          opportunityId={o.id}
+          bids={p.bids}
+          weights={p.weights}
+          canEdit={p.canEdit}
+          canApprove={p.canApprove}
+          names={names}
+        />
       )}
 
       {tab === "quotes" && (

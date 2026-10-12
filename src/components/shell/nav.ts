@@ -18,6 +18,7 @@ export const NAV: NavItem[] = [
   { href: "/calendar", label: "Bid calendar", icon: "event", section: "Capture" },
   { href: "/quotes", label: "Quotes", icon: "request_quote", section: "Capture" },
   { href: "/client-items", label: "Client items", icon: "outbox", section: "Capture" },
+  { href: "/copilot", label: "Copilot", icon: "auto_awesome", section: "Capture" },
   { href: "/bench", label: "Bench", icon: "badge", section: "Readiness" },
   { href: "/events", label: "BD events", icon: "campaign", section: "Readiness" },
   { href: "/registrations", label: "Registrations", icon: "verified", section: "Readiness" },
@@ -45,6 +46,7 @@ export const SHIPPED = new Set([
   "/client-items",
   "/bench",
   "/events",
+  "/copilot",
 ]);
 
 export function navFor(role: Role) {

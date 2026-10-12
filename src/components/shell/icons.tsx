@@ -1,4 +1,5 @@
 "use client";
+import AutoAwesome from "@mui/icons-material/AutoAwesomeOutlined";
 import Badge from "@mui/icons-material/BadgeOutlined";
 import Business from "@mui/icons-material/BusinessOutlined";
 import Campaign from "@mui/icons-material/CampaignOutlined";
@@ -33,4 +34,5 @@ export const NAV_ICONS: Record<string, React.ReactNode> = {
   settings: <Settings fontSize="small" />,
   history: <History fontSize="small" />,
   hub: <HubIcon fontSize="small" />,
+  auto_awesome: <AutoAwesome fontSize="small" />,
 };

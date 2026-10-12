@@ -72,6 +72,7 @@ export const ROUTE_ROLES: Record<string, Role[] | "all"> = {
   "/settings": ["admin"],
   "/audit": ["admin"],
   "/integrations": ["admin", "executive", "delivery_lead"],
+  "/copilot": "all",
   "/_kit": "all",
 };
 

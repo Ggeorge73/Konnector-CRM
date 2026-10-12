@@ -14,6 +14,7 @@ import type { GridColDef } from "@mui/x-data-grid";
 import Link from "next/link";
 import { useState } from "react";
 import { ContactFormDialog } from "@/components/contacts/ContactFormDialog";
+import { CopilotButton } from "@/components/copilot/CopilotPanel";
 import { DataTable, EmptyState, GlassCard, HealthRing, Money, RecordHeader, StatusChip, type TimelineItem } from "@/components/kit";
 import { Countdown } from "@/components/kit/Countdown";
 import { FilesPanel } from "@/components/records/FilesPanel";
@@ -127,6 +128,7 @@ export function AccountDetail(props: {
         ]}
         actions={
           <>
+            <CopilotButton record={{ type: "account", id: a.id, name: a.name, accountId: a.id }} />
             {props.canEdit && (
               <Button variant="outlined" startIcon={<Edit />} onClick={() => setEditing(true)}>
                 Edit

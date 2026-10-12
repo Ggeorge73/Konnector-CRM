@@ -10,6 +10,7 @@ import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
 import Link from "next/link";
 import { useState } from "react";
+import { CopilotButton } from "@/components/copilot/CopilotPanel";
 import { EmptyState, GlassCard, Money, RecordHeader, StatusChip, type TimelineItem } from "@/components/kit";
 import { TasksPanel, type TaskRow } from "@/components/records/TasksPanel";
 import { TimelinePanel } from "@/components/records/TimelinePanel";
@@ -48,6 +49,7 @@ export function ContactDetail(props: {
         ]}
         actions={
           <>
+            <CopilotButton record={{ type: "contact", id: ct.id, name: `${ct.first_name} ${ct.last_name}`, accountId: account.id }} />
             {ct.email && (
               <Button variant="outlined" startIcon={<Email />} href={`mailto:${ct.email}`}>
                 Email
