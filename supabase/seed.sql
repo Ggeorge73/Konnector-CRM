@@ -252,4 +252,22 @@ insert into public.client_items (id, created_at, updated_at, created_by, archive
 -- audit_log
 -- audit_log: no seed rows
 
+-- copilot_runs
+-- copilot_runs: no seed rows
+
+-- mail_connections
+-- mail_connections: no seed rows
+
+-- synced_messages
+-- synced_messages: no seed rows
+
+-- api_keys
+-- api_keys: no seed rows
+
+-- webhook_subscriptions
+-- webhook_subscriptions: no seed rows
+
+-- webhook_deliveries
+-- webhook_deliveries: no seed rows
+
 commit;
