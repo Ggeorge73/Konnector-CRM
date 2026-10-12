@@ -69,3 +69,28 @@ Notes / inspect & adapt:
 - Kanban auto-scroll moves columns during long drags; the e2e test drags between adjacent stages and
   tests the gate dialog via the record page.
 - Parallel builds use `NEXT_DIST_DIR` + `E2E_PORT` so several engineers can verify at once.
+
+## Sprint 4 — Bench, events, handoff, Pulse (KCRM-4) and Sprint 5 — Client commercial loop (KCRM-5)
+
+Delivered:
+
+- Consultant bench (skills, certifications, bill/cost rates with cost restricted to leaders + recruiters,
+  availability, resumes) and a ranked "who can staff this?" Staffing tab on opportunities.
+- BD events with lead capture (existing or new contact/account), automatic follow-up tasks and timeline entries.
+- Pulse home: globe with arcs from Atlanta HQ to live projects, KPI tiles, pipeline trend and stage charts,
+  bids due, registrations expiring, awaiting client, project health.
+- Notifications centre, daily email digest (`/api/cron/daily`, Resend when configured), live updates.
+- Client items: publish an approved quote (exact client preview, client PDF), contract amendments,
+  renewal offers and surveys; versions with supersede, withdraw; inbound viewed / decided / survey events
+  drive the deal (Won + automatic handoff, `project.extended`, change-request tasks, low-score alerts);
+  daily expiry job and owner nudges; demo "simulate the client" controls.
+- Security: file downloads now check access to the record the file belongs to (consultant resumes are no
+  longer readable by bd via file id).
+
+Tests: 85 unit tests, 154 RLS assertions, 38 Playwright e2e (desktop + mobile smoke), all green.
+
+Notes / inspect & adapt:
+
+- Sprint 4 and 5 shipped in one PR because they share the client-item, file-access and nav changes.
+- Not started (PI-2, needs PO approval per the build plan): Konnector Copilot (Claude API), Google
+  Workspace / Microsoft 365 sync, public REST API.

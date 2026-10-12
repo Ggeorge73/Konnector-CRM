@@ -438,7 +438,7 @@ export async function notify(
   href: string | null,
   body: string | null = null,
 ) {
-  return c.store.insert("notifications", { user_id: userId, kind, title, body, href, read_at: null });
+  return c.store.insert("notifications", { user_id: userId, kind, title, body, href, read_at: null, created_at: c.now.toISOString() });
 }
 
 export async function myNotifications(c: Ctx) {

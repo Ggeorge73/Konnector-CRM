@@ -56,3 +56,12 @@ e2e/                     Playwright specs (demo backend, store reset per test)
 
 SAFe-style PI plan in `docs/PI-1.md`; Jira project **KCRM** (board columns: To Do → In Progress →
 Pull Request → Testing → Done, same as DiamondEcho). Move tickets as work progresses.
+
+## Jobs and integration
+
+- `POST /api/cron/integrations` (every 5 min) — retry due Konnect Hub deliveries. `POST /api/cron/daily` —
+  client-item expiry + nudges, registration/vetting reminders, email digests. Both need `Authorization: Bearer $CRON_SECRET`.
+- Contract and event list: `docs/INTEGRATION.md`. Database and RLS: `docs/DATABASE.md`.
+- Before pushing: `pnpm verify` (typecheck, lint, format:check, unit tests), then `pnpm build && pnpm test:e2e`.
+  Parallel runs: `NEXT_DIST_DIR=.next-x E2E_PORT=34xx PW_OUTPUT=test-results-x`. Never commit the
+  `tsconfig.json` include that Next adds for a custom dist dir.

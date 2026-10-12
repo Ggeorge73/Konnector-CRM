@@ -36,6 +36,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
       marginFloor={settings.margin_floor_pct}
       canEdit={canEditOpportunity(c.user, o) && q.canSeeCost}
       canApprove={canApprove(c.user)}
+      hubClient={!!(await c.store.get("accounts", q.account_id))?.konnect_hub_client_id}
     />
   );
 }

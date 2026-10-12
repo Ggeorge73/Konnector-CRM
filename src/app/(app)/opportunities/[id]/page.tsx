@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { OpportunityDetail } from "@/components/opportunities/OpportunityDetail";
 import { ForbiddenError } from "@/lib/auth/errors";
-import { canApprove, canEditOpportunity, canRunHandoff, isLeader } from "@/lib/auth/permissions";
+import { canApprove, canEditOpportunity, canRunHandoff, canSeeBench, isLeader } from "@/lib/auth/permissions";
+import { staffingMatches } from "@/lib/services/bench";
 import { bidDecisionsFor, getOpportunity, visibleQuotes } from "@/lib/services/capture";
 import { getAccount, recordView, usersById, visibleAccounts } from "@/lib/services/core";
 import { ctx } from "@/lib/services/context";
@@ -40,6 +41,7 @@ export default async function OpportunityPage({
     c.store.list("project_health", { where: { opportunity_id: id } }),
   ]);
   const contacts = await c.store.list("contacts", { where: { account_id: o.account_id } });
+  const staffing = canSeeBench(c.user) && !["lost", "no_bid"].includes(o.stage) ? await staffingMatches(c, id) : null;
   return (
     <OpportunityDetail
       opportunity={o}
@@ -69,6 +71,7 @@ export default async function OpportunityPage({
       canHandoff={canRunHandoff(c.user)}
       initialTab={sp.tab}
       openHandoff={sp.handoff === "1"}
+      staffing={staffing}
       handoffCtx={{
         opportunityId: o.id,
         opportunityName: o.name,

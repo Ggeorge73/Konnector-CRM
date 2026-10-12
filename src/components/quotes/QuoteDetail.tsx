@@ -8,8 +8,10 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import type { GridColDef } from "@mui/x-data-grid";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { approveQuoteAction, setQuoteStatusAction, submitQuoteAction } from "@/app/actions/capture";
+import { draftFromQuoteAction } from "@/app/actions/client-items";
 import { useAction } from "@/components/common/useAction";
 import { DataTable, GlassCard, Money, RecordHeader, Restricted, StatusChip } from "@/components/kit";
 import { dateLabel, pct } from "@/lib/format";
@@ -29,14 +31,19 @@ export function QuoteDetail(p: {
   marginFloor: number;
   canEdit: boolean;
   canApprove: boolean;
-  /** Slot for the Publish-to-client action (client commercial loop). */
-  publishSlot?: React.ReactNode;
+  /** Konnect Hub client for this account, if any (publishing needs one). */
+  hubClient: boolean;
 }) {
   const q = p.quote;
   const [editing, setEditing] = useState(false);
   const submit = useAction(submitQuoteAction, { success: "Quote submitted" });
   const approve = useAction(approveQuoteAction, { success: "Decision recorded" });
   const status = useAction(setQuoteStatusAction, { success: "Quote updated" });
+  const router = useRouter();
+  const publish = useAction(draftFromQuoteAction, {
+    success: "Draft created — review the client preview, then publish",
+    onSuccess: (i) => router.push(`/client-items/${i.id}`),
+  });
   const cols: GridColDef<Line>[] = [
     { field: "position", headerName: "#", width: 50 },
     { field: "item", headerName: "Item", flex: 1, minWidth: 220 },
@@ -144,7 +151,11 @@ export function QuoteDetail(p: {
                 </Button>
               </>
             )}
-            {p.publishSlot}
+            {p.canEdit && p.hubClient && ["approved", "sent"].includes(q.status) && (
+              <Button variant="contained" color="secondary" disabled={publish.pending} onClick={() => publish.exec(q.id, {})}>
+                Publish to client
+              </Button>
+            )}
           </>
         }
       />

@@ -20,6 +20,7 @@ import { FormDialog } from "@/components/common/FormDialog";
 import { DateField, Text } from "@/components/common/fields";
 import { useAction } from "@/components/common/useAction";
 import { Countdown, EmptyState, GlassCard, HealthRing, Money, RecordHeader, StatusChip, type TimelineItem } from "@/components/kit";
+import { StaffingPanel } from "@/components/bench/StaffingPanel";
 import { HandoffPanel, type HandoffContext } from "@/components/handoff/HandoffPanel";
 import { QuoteEditor } from "@/components/quotes/QuoteEditor";
 import { FilesPanel } from "@/components/records/FilesPanel";
@@ -69,6 +70,7 @@ export interface OpportunityDetailProps {
   initialTab?: string;
   openHandoff?: boolean;
   handoffCtx: HandoffContext;
+  staffing: import("@/lib/services/bench").StaffingResult | null;
 }
 
 export function OpportunityDetail(p: OpportunityDetailProps) {
@@ -78,12 +80,13 @@ export function OpportunityDetail(p: OpportunityDetailProps) {
       { key: "overview", label: "Overview" },
       ...(o.kind === "public_bid" || p.bids.decisions.length ? [{ key: "bid", label: "Bid / No-Bid" }] : []),
       { key: "quotes", label: `Quotes (${p.quotes.length})` },
+      ...(p.staffing ? [{ key: "staffing", label: "Staffing" }] : []),
       ...(o.stage === "won" || p.handoff ? [{ key: "handoff", label: "Handoff" }] : []),
       { key: "timeline", label: `Timeline (${p.timeline.length})` },
       { key: "tasks", label: `Follow-ups (${p.tasks.filter((t) => t.status === "open").length})` },
       { key: "files", label: `Files (${p.files.length})` },
     ],
-    [o.kind, o.stage, p.bids.decisions.length, p.quotes.length, p.handoff, p.timeline.length, p.tasks, p.files.length],
+    [o.kind, o.stage, p.staffing, p.bids.decisions.length, p.quotes.length, p.handoff, p.timeline.length, p.tasks, p.files.length],
   );
   const [tab, setTab] = useState(p.openHandoff ? "handoff" : tabs.some((t) => t.key === p.initialTab) ? p.initialTab! : "overview");
   const [editing, setEditing] = useState(false);
@@ -315,6 +318,9 @@ export function OpportunityDetail(p: OpportunityDetailProps) {
         </GlassCard>
       )}
 
+      {tab === "staffing" && p.staffing && (
+        <StaffingPanel matches={p.staffing.matches} wantedSkills={p.staffing.wantedSkills} needBy={p.staffing.needBy} />
+      )}
       {tab === "handoff" && <HandoffPanel ctx={p.handoffCtx} autoOpen={p.openHandoff} />}
 
       {tab === "timeline" && (

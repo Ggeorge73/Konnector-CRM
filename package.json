@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:rls": "tsx scripts/rls-test.ts",
-    "db:seed-sql": "tsx scripts/generate-seed-sql.ts"
+    "db:seed-sql": "tsx scripts/generate-seed-sql.ts",
+    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
