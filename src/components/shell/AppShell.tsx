@@ -24,6 +24,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { UserAvatar } from "@/components/kit/UserAvatar";
+import { useLiveRefresh } from "@/components/common/useLiveRefresh";
 import { useColorMode } from "@/components/providers/ThemeRegistry";
 import { ROLE_LABEL } from "@/lib/auth/permissions";
 import type { Role } from "@/lib/domain/types";
@@ -77,6 +78,8 @@ export function AppShell({ user, unread, children }: { user: ShellUser; unread: 
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, []);
+
+  useLiveRefresh();
 
   const offset = mobile ? 0 : collapsed ? 76 + 32 : 260 + 32;
 

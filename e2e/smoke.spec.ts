@@ -32,7 +32,7 @@ test("command palette opens with Ctrl+K and searches records", async ({ page, is
   await expect(page.getByRole("option", { name: /Georgia Technology Authority/ })).toBeVisible();
 });
 
-test.fixme("role guard blocks a bd user from admin routes (enable when /settings ships in S3)", async ({ page }) => {
+test("role guard blocks a bd user from admin routes", async ({ page }) => {
   await signIn(page, "bd");
   await page.goto("/settings");
   await expect(page).toHaveURL(/denied=1/);

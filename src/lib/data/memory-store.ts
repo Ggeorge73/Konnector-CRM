@@ -40,6 +40,8 @@ const clone = <V>(v: V): V => structuredClone(v);
 
 /** In-memory store used for the demo backend, unit tests and Playwright. */
 export class MemoryStore implements Store {
+  /** Bumped on every write; the demo "live updates" poller compares it. */
+  version = 0;
   constructor(private data: Dataset = emptyDataset()) {}
 
   async list<T extends TableName>(table: T, opts?: ListOptions<T>): Promise<Row<T>[]> {
@@ -75,6 +77,7 @@ export class MemoryStore implements Store {
       ...row,
     } as Row<T>;
     (this.data[table] as Row<T>[]).push(clone(full));
+    this.version++;
     return clone(full);
   }
 
@@ -83,6 +86,7 @@ export class MemoryStore implements Store {
     const idx = rows.findIndex((r) => r.id === id);
     if (idx < 0) throw new Error(`${table} ${id} not found`);
     rows[idx] = { ...rows[idx], ...clone(patch), id, updated_at: new Date().toISOString() };
+    this.version++;
     return clone(rows[idx]);
   }
 
@@ -90,6 +94,7 @@ export class MemoryStore implements Store {
     const rows = this.data[table] as Row<T>[];
     const idx = rows.findIndex((r) => r.id === id);
     if (idx >= 0) rows.splice(idx, 1);
+    this.version++;
   }
 
   /** Test helper: direct access to a table. */

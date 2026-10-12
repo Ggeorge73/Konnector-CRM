@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC = ["/login", "/auth", "/api/integrations", "/api/mock-konnect-hub", "/api/dev", "/api/cron"];
+const PUBLIC = ["/login", "/auth", "/api/integrations", "/api/mock-konnect-hub", "/api/dev", "/api/cron", "/api/public-files"];
 
 /** Cheap session presence check; full role checks happen server-side in requireUser(). */
 export function middleware(req: NextRequest) {

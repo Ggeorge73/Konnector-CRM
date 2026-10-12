@@ -26,6 +26,12 @@ declare module "@mui/material/Typography" {
   }
 }
 
+declare module "@mui/material/Button" {
+  interface ButtonPropsColorOverrides {
+    gold: true;
+  }
+}
+
 declare module "@mui/material/Chip" {
   interface ChipPropsColorOverrides {
     gold: true;
