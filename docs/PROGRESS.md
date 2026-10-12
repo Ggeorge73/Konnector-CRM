@@ -25,6 +25,7 @@ Notes / inspect & adapt:
 ## Sprint 2 — Core CRM (KCRM-2)
 
 Delivered:
+
 - Supabase schema for all 27 tables (4 migrations), RLS on every table with `has_role()` /
   ownership / sharing predicates, append-only `audit_log`, cost-free views (`quote_lines_client`,
   `consultants_public`) and owner-rights cost views. `pnpm test:rls`: 154 role assertions pass
@@ -38,6 +39,7 @@ Delivered:
   recently viewed, awaiting client); notifications list; admin audit log.
 
 Notes / inspect & adapt:
+
 - Postgres can't hide a column per user while all users share the `authenticated` role, so cost is
   read through `quote_lines_internal` (filtered by `can_see_quote_cost`). `SupabaseStore` handles this.
 - Relative times render through `<RelTime>` to tolerate server/client second drift.
