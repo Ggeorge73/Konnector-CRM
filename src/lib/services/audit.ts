@@ -1,16 +1,17 @@
 import type { Ctx } from "./context-types";
+import { actorId } from "./system";
 
 /** Append-only audit entry for money, stage, ownership and permission changes. */
 export async function audit(c: Ctx, action: string, entity: string, entityId: string, before: object | null, after: object | null) {
   await c.store.insert("audit_log", {
     org_id: c.user.org_id,
-    actor_id: c.user.id,
+    actor_id: actorId(c),
     action,
     entity,
     entity_id: entityId,
     before: before as Record<string, unknown> | null,
     after: after as Record<string, unknown> | null,
-    created_by: c.user.id,
+    created_by: actorId(c),
   });
 }
 

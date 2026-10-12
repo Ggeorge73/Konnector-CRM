@@ -22,7 +22,7 @@ test.describe("core CRM", () => {
   test("filters accounts and saves a view", async ({ page }) => {
     await signIn(page, "admin");
     await page.goto("/accounts");
-    await page.getByLabel("Status").click();
+    await page.getByRole("combobox", { name: "Status" }).click();
     await page.getByRole("option", { name: "Active client" }).click();
     await expect(page.getByRole("link", { name: "City of Atlanta" })).toBeVisible();
     await expect(page.getByRole("link", { name: "City of Savannah" })).toHaveCount(0);

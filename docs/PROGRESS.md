@@ -43,3 +43,29 @@ Notes / inspect & adapt:
 - Postgres can't hide a column per user while all users share the `authenticated` role, so cost is
   read through `quote_lines_internal` (filtered by `can_see_quote_cost`). `SupabaseStore` handles this.
 - Relative times render through `<RelTime>` to tolerate server/client second drift.
+
+## Sprint 3 — Capture pipeline (KCRM-3) + handoff core (KCRM-34, KCRM-35)
+
+Delivered:
+
+- Pipeline: Kanban (dnd-kit, WIP warnings, gold shimmer on Won, auto-scroll) and table views with
+  filters; stage gates enforced client- and server-side (approved Bid/No-Bid for public bids, lost /
+  no-bid reasons, proposal due date); stage changes audited and on the timeline.
+- Opportunity record page: public-bid fields, question/proposal countdowns, Bid/No-Bid tab
+  (weighted ScoreCard, submit → executive approve/send back, history), quotes, timeline, follow-ups, files.
+- Quotes: line editor with live margin vs floor, auto-approve above floor / executive approval below,
+  sent/accepted/declined, client PDF (pdf-lib) built from client-facing fields only. Cost, margin and
+  internal notes are redacted for viewers who aren't the quote owner or an executive.
+- Forecast (stage, service line, quarter; commit / best case), bid calendar, registrations tracker with
+  expiry reminders, partner/OEM vetting (executives only), admin settings (margin floor, bid weights
+  summing to 100, stage labels/probabilities/WIP).
+- Handoff core pulled forward (coupled to the Won flow): contract v1 schemas, HMAC-SHA256 signing with
+  timestamp, outbox with idempotency + exponential backoff + cron retry, in-process mock Konnect Hub,
+  inbound `project.health_updated` webhook, Won → handoff wizard, HealthRing + "Open in Konnect Hub",
+  admin Integrations page, signed 7-day document links. Live updates (version poll / Supabase Realtime).
+
+Notes / inspect & adapt:
+
+- Kanban auto-scroll moves columns during long drags; the e2e test drags between adjacent stages and
+  tests the gate dialog via the record page.
+- Parallel builds use `NEXT_DIST_DIR` + `E2E_PORT` so several engineers can verify at once.

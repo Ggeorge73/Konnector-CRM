@@ -3,6 +3,7 @@ import { isLeader } from "@/lib/auth/permissions";
 import { ForbiddenError } from "@/lib/auth/errors";
 import type { SavedView } from "@/lib/domain/types";
 import type { Ctx } from "./context-types";
+import { actorId } from "./system";
 
 export async function savedViews(c: Ctx, entity: SavedView["entity"]) {
   const all = await c.store.list("saved_views", { where: { entity }, orderBy: { column: "name" } });
@@ -18,7 +19,7 @@ export async function saveView(c: Ctx, entity: SavedView["entity"], name: string
     name: v.name,
     query,
     shared,
-    created_by: c.user.id,
+    created_by: actorId(c),
   });
 }
 

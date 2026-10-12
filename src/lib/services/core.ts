@@ -20,6 +20,7 @@ import {
 } from "@/lib/domain/types";
 import { audit, diff } from "./audit";
 import type { Ctx } from "./context-types";
+import { actorId } from "./system";
 
 // ---------------- Scoping ----------------
 
@@ -105,7 +106,7 @@ export async function createAccount(c: Ctx, input: AccountInputT): Promise<Accou
     konnect_hub_client_id: null,
     survey_score: null,
     description: v.description ?? null,
-    created_by: c.user.id,
+    created_by: actorId(c),
   });
   await audit(c, "account.created", "accounts", row.id, null, { name: row.name, owner_id: row.owner_id });
   await logActivity(c, { type: "system", subject: "Account created", related_type: "account", related_id: row.id, account_id: row.id });
@@ -254,7 +255,7 @@ export async function createContact(c: Ctx, input: ContactInputT): Promise<Conta
     phone: v.phone ?? null,
     role_in_buying: v.role_in_buying ?? null,
     owner_id: c.user.id,
-    created_by: c.user.id,
+    created_by: actorId(c),
   });
   await logActivity(c, {
     type: "system",
@@ -317,10 +318,10 @@ export async function logActivity(c: Ctx, input: ActivityInputT): Promise<Activi
     related_type: v.related_type,
     related_id: v.related_id,
     account_id: v.account_id ?? null,
-    actor_id: v.type === "system" ? null : c.user.id,
+    actor_id: v.type === "system" ? null : actorId(c),
     mentions,
     reactions: {},
-    created_by: c.user.id,
+    created_by: actorId(c),
   });
   for (const uid of mentions) {
     if (uid === c.user.id) continue;
@@ -398,7 +399,7 @@ export async function createTask(c: Ctx, input: TaskInputT): Promise<Task> {
     related_id: v.related_id ?? null,
     account_id: v.account_id ?? null,
     notes: v.notes ?? null,
-    created_by: c.user.id,
+    created_by: actorId(c),
   });
   if (assignee !== c.user.id) {
     await notify(

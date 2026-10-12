@@ -5,6 +5,7 @@ import Campaign from "@mui/icons-material/CampaignOutlined";
 import Contacts from "@mui/icons-material/ContactsOutlined";
 import Event from "@mui/icons-material/EventOutlined";
 import History from "@mui/icons-material/History";
+import HubIcon from "@mui/icons-material/Hub";
 import Insights from "@mui/icons-material/Insights";
 import Outbox from "@mui/icons-material/OutboxOutlined";
 import Policy from "@mui/icons-material/PolicyOutlined";
@@ -31,4 +32,5 @@ export const NAV_ICONS: Record<string, React.ReactNode> = {
   policy: <Policy fontSize="small" />,
   settings: <Settings fontSize="small" />,
   history: <History fontSize="small" />,
+  hub: <HubIcon fontSize="small" />,
 };

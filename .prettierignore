@@ -4,3 +4,4 @@ pnpm-lock.yaml
 supabase/seed.sql
 docs/kit
 .claude
+.next-*
