@@ -42,3 +42,9 @@ that verifies signatures, enforces idempotency and the contract, and creates fak
 `POST /api/mock-konnect-hub/simulate` (dev only) sends signed Hub → CRM events; client item pages have
 "Simulate the client" buttons in demo mode. `{ "control": { "failNext": 2 } }` makes the next deliveries
 fail to exercise retries.
+
+## Other internal tools
+
+Konnect Hub is the only system on this contract. Other internal tools (accounting, e-signature, BI) use the REST API
+(`/api/v1`) and outbound webhooks, which reuse the same `X-Konnector-Signature` scheme and the same cost-field guard.
+See `docs/API.md`.

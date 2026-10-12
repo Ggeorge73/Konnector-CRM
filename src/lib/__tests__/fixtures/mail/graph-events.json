@@ -1,0 +1,19 @@
+{
+  "value": [
+    {
+      "id": "AAMkAGI2TG93AAA=",
+      "subject": "Permit backlog working session",
+      "bodyPreview": "Walk through permit SLA data.",
+      "isCancelled": false,
+      "start": { "dateTime": "2026-10-10T15:00:00.0000000", "timeZone": "UTC" },
+      "organizer": { "emailAddress": { "name": "Marcus Bell", "address": "marcus.bell@konnectorllc.com" } },
+      "attendees": [
+        {
+          "type": "required",
+          "status": { "response": "accepted" },
+          "emailAddress": { "name": "Jasmine Carter", "address": "jasmine.carter@atl.example.gov" }
+        }
+      ]
+    }
+  ]
+}

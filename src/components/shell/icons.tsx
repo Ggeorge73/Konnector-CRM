@@ -3,11 +3,13 @@ import AutoAwesome from "@mui/icons-material/AutoAwesomeOutlined";
 import Badge from "@mui/icons-material/BadgeOutlined";
 import Business from "@mui/icons-material/BusinessOutlined";
 import Campaign from "@mui/icons-material/CampaignOutlined";
+import Code from "@mui/icons-material/Code";
 import Contacts from "@mui/icons-material/ContactsOutlined";
 import Event from "@mui/icons-material/EventOutlined";
 import History from "@mui/icons-material/History";
 import HubIcon from "@mui/icons-material/Hub";
 import Insights from "@mui/icons-material/Insights";
+import Mail from "@mui/icons-material/MailOutlined";
 import Outbox from "@mui/icons-material/OutboxOutlined";
 import Policy from "@mui/icons-material/PolicyOutlined";
 import Public from "@mui/icons-material/Public";
@@ -34,5 +36,7 @@ export const NAV_ICONS: Record<string, React.ReactNode> = {
   settings: <Settings fontSize="small" />,
   history: <History fontSize="small" />,
   hub: <HubIcon fontSize="small" />,
+  code: <Code fontSize="small" />,
+  mail: <Mail fontSize="small" />,
   auto_awesome: <AutoAwesome fontSize="small" />,
 };

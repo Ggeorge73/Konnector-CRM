@@ -38,6 +38,7 @@ import type { Ctx } from "./context-types";
 import { actorId } from "./system";
 import { getAccount, logActivity, notify, visibleOpportunities } from "./core";
 import { orgSettings } from "./pulse";
+import { emitEvent, webhookData } from "./webhooks";
 
 const isoDate = z
   .string()
@@ -138,6 +139,7 @@ export async function createOpportunity(c: Ctx, input: OpportunityInputT): Promi
     related_id: row.id,
     account_id: row.account_id,
   });
+  await emitEvent(c, "opportunity.created", webhookData.opportunity(row));
   return row;
 }
 
@@ -216,6 +218,7 @@ export async function moveStage(c: Ctx, id: string, input: z.input<typeof MoveIn
     related_id: id,
     account_id: o.account_id,
   });
+  await emitEvent(c, "opportunity.stage_changed", webhookData.opportunity(row, o.stage));
   return row;
 }
 
@@ -457,10 +460,12 @@ export async function submitQuote(c: Ctx, id: string) {
       await notify(c, u.id, "approval", `Quote ${q.number} needs margin approval`, `/quotes/${id}`);
     }
     await audit(c, "quote.approval_requested", "quotes", id, { status: q.status }, { status: row.status });
+    await emitEvent(c, "quote.status_changed", webhookData.quote(row, q.status));
     return row;
   }
   const row = await c.store.update("quotes", id, { status: "approved", approved_by: c.user.id, approved_at: c.now.toISOString() });
   await audit(c, "quote.approved", "quotes", id, { status: q.status }, { status: "approved" });
+  await emitEvent(c, "quote.status_changed", webhookData.quote(row, q.status));
   return row;
 }
 
@@ -475,6 +480,7 @@ export async function approveQuote(c: Ctx, id: string, approve: boolean) {
   );
   await audit(c, approve ? "quote.approved" : "quote.rejected", "quotes", id, { status: q.status }, { status: row.status });
   await notify(c, q.owner_id, "approval", `Quote ${q.number} ${approve ? "approved" : "sent back for changes"}`, `/quotes/${id}`);
+  await emitEvent(c, "quote.status_changed", webhookData.quote(row, q.status));
   return row;
 }
 
@@ -493,6 +499,7 @@ export async function setQuoteStatus(c: Ctx, id: string, status: "sent" | "accep
     related_id: o.id,
     account_id: o.account_id,
   });
+  await emitEvent(c, "quote.status_changed", webhookData.quote(row, q.status));
   return row;
 }
 

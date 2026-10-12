@@ -94,3 +94,56 @@ Notes / inspect & adapt:
 - Sprint 4 and 5 shipped in one PR because they share the client-item, file-access and nav changes.
 - Not started (PI-2, needs PO approval per the build plan): Konnector Copilot (Claude API), Google
   Workspace / Microsoft 365 sync, public REST API.
+
+## PI-2 Sprint 6 — Konnector Copilot (KCRM-45 … 51)
+
+Delivered:
+
+- Copilot drawer on account, contact and opportunity pages: account summary, follow-up email draft (send from
+  your own mailbox once connected), Bid/No-Bid suggestion that pre-fills the scorecard, meeting notes → follow-ups,
+  RFP PDF → compliance checklist. Nothing is sent or saved without a click. Guide: `docs/COPILOT.md`.
+- Claude API server-side only, structured outputs validated with Zod, per-task effort, refusal / truncation /
+  outage handling, 40 requests per user per hour, demo mode without a key.
+- Context built only through role-scoped services; cost-side data never reaches a prompt (unit-tested).
+- `/copilot` usage page (`copilot_runs` stores usage only, never prompt or answer text).
+
+Notes / inspect & adapt:
+
+- Bid suggestions are hidden while a scorecard is waiting for executive approval (found by the e2e test).
+
+## PI-2 Sprint 7 — Google Workspace / Microsoft 365 (KCRM-52 … 55)
+
+Delivered:
+
+- Per-user OAuth connections (Google with PKCE, Microsoft Graph) on `/connections`; tokens encrypted at rest,
+  never selectable by signed-in roles.
+- Email and calendar sync (`POST /api/cron/mail-sync`, every 15 min, plus "Sync now"): only items with known
+  contacts land on the timeline; newsletters, personal and internal-only items are skipped. Guide: `docs/MAIL.md`.
+- Send from your own address on account and contact pages and from Copilot drafts; sent mail is logged.
+
+Notes / inspect & adapt:
+
+- Live Google / Microsoft calls are tested against recorded fixtures; the demo backend uses a mock mailbox.
+- Microsoft sends via draft-then-send so the sent message keeps a stable id (no duplicate on the next sync).
+
+## PI-2 Sprint 8 — REST API, outbound webhooks and PI-2 database (Platform)
+
+Delivered:
+
+- Migration `20261012000005_pi2.sql` for all six PI-2 tables (copilot_runs, mail_connections, synced_messages,
+  api_keys, webhook_subscriptions, webhook_deliveries) with RLS and column-level secrecy for tokens, key hashes
+  and webhook secrets; RLS test extended (per-role own/others' rows, admin-only webhooks, secret columns denied).
+- Personal API keys (`kcrm_<prefix>_<secret>`, SHA-256 only, shown once, scopes read/write, expiry, revoke, audited).
+- REST API v1 (`/api/v1/{accounts,contacts,opportunities,activities,tasks,quotes}`) through the existing services:
+  cursor pagination, filters, consistent JSON errors, 120 req/min per key with `RateLimit-*` headers, no cost-side
+  fields. OpenAPI 3.1 at `/api/v1/openapi.json`; guide in `docs/API.md`.
+- Outbound webhooks: admin subscriptions with encrypted signing secrets, signed deliveries
+  (`X-Konnector-Signature`), backoff retries from the integrations cron, test events, delivery log with retry.
+  Emitted from account, opportunity, quote, client-item and handoff services.
+- `/developer` ("API & webhooks"): keys for everyone; webhooks for admins.
+
+Notes / inspect & adapt:
+
+- In Supabase mode the API uses the service role (no user JWT behind an API key), so access control for API
+  requests lives in the service layer — see "Security model" in `docs/API.md`.
+- The rate limiter is per server instance; move it to a shared store before scaling out.

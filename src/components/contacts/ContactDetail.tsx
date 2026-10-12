@@ -1,6 +1,5 @@
 "use client";
 import Edit from "@mui/icons-material/EditOutlined";
-import Email from "@mui/icons-material/EmailOutlined";
 import Phone from "@mui/icons-material/PhoneOutlined";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -10,6 +9,7 @@ import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
 import Link from "next/link";
 import { useState } from "react";
+import { ComposeEmailButton } from "@/components/mail/ComposeEmailButton";
 import { CopilotButton } from "@/components/copilot/CopilotPanel";
 import { EmptyState, GlassCard, Money, RecordHeader, StatusChip, type TimelineItem } from "@/components/kit";
 import { TasksPanel, type TaskRow } from "@/components/records/TasksPanel";
@@ -51,9 +51,12 @@ export function ContactDetail(props: {
           <>
             <CopilotButton record={{ type: "contact", id: ct.id, name: `${ct.first_name} ${ct.last_name}`, accountId: account.id }} />
             {ct.email && (
-              <Button variant="outlined" startIcon={<Email />} href={`mailto:${ct.email}`}>
-                Email
-              </Button>
+              <ComposeEmailButton
+                relatedType="contact"
+                relatedId={ct.id}
+                recipients={[{ id: ct.id, name: `${ct.first_name} ${ct.last_name}`, email: ct.email }]}
+                label="Email"
+              />
             )}
             {ct.phone && (
               <Button variant="outlined" startIcon={<Phone />} href={`tel:${ct.phone}`}>

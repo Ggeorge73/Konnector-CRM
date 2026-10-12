@@ -14,6 +14,7 @@ import type { GridColDef } from "@mui/x-data-grid";
 import Link from "next/link";
 import { useState } from "react";
 import { ContactFormDialog } from "@/components/contacts/ContactFormDialog";
+import { ComposeEmailButton } from "@/components/mail/ComposeEmailButton";
 import { CopilotButton } from "@/components/copilot/CopilotPanel";
 import { DataTable, EmptyState, GlassCard, HealthRing, Money, RecordHeader, StatusChip, type TimelineItem } from "@/components/kit";
 import { Countdown } from "@/components/kit/Countdown";
@@ -129,6 +130,12 @@ export function AccountDetail(props: {
         actions={
           <>
             <CopilotButton record={{ type: "account", id: a.id, name: a.name, accountId: a.id }} />
+            <ComposeEmailButton
+              relatedType="account"
+              relatedId={a.id}
+              recipients={props.contacts.map((x) => ({ id: x.id, name: `${x.first_name} ${x.last_name}`, email: x.email }))}
+              label="Email"
+            />
             {props.canEdit && (
               <Button variant="outlined" startIcon={<Edit />} onClick={() => setEditing(true)}>
                 Edit

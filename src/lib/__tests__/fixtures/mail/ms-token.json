@@ -1,0 +1,9 @@
+{
+  "token_type": "Bearer",
+  "scope": "Mail.Read Mail.Send Calendars.Read openid email profile",
+  "expires_in": 4766,
+  "ext_expires_in": 4766,
+  "access_token": "eyJ0eXAiOiJKV1Qi.recorded.access",
+  "refresh_token": "0.AXoA-recorded-refresh",
+  "id_token": "eyJhbGciOiAiUlMyNTYiLCAia2lkIjogImsxIn0.eyJpc3MiOiAiaHR0cHM6Ly9sb2dpbi5taWNyb3NvZnRvbmxpbmUuY29tLzkxODgwNDBkL3YyLjAiLCAib2lkIjogImFiYyIsICJwcmVmZXJyZWRfdXNlcm5hbWUiOiAibWFyY3VzLmJlbGxAa29ubmVjdG9ybGxjLmNvbSJ9.sig"
+}

@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { logActivityAction } from "@/app/actions/core";
 import { copilotAction, createCopilotTasksAction } from "@/app/actions/copilot";
+import { ComposeEmailButton } from "@/components/mail/ComposeEmailButton";
 import { useToast } from "@/components/common/Toast";
 import { StatusChip } from "@/components/kit";
 import type { CopilotResult } from "@/lib/copilot/run";
@@ -494,12 +495,28 @@ function EmailDraft({
   );
 }
 
-/** Replaced with the mail composer once a mailbox connection exists (Sprint 7). */
-function EmailComposeSlot(_: {
+/** Sends the (edited) draft from the user's own mailbox; disabled with a link to /connections when none is connected. */
+function EmailComposeSlot({
+  record,
+  recipients,
+  subject,
+  body,
+}: {
   record: CopilotRecord;
   recipients: Array<{ id: string; name: string; email: string }>;
   subject: string;
   body: string;
 }) {
-  return null;
+  return (
+    <ComposeEmailButton
+      relatedType={record.type}
+      relatedId={record.id}
+      recipients={recipients}
+      defaultTo={record.type === "contact" ? [record.id] : undefined}
+      defaultSubject={subject}
+      defaultBody={body}
+      label="Send from my mailbox"
+      size="small"
+    />
+  );
 }

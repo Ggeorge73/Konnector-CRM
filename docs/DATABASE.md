@@ -20,6 +20,7 @@ Every table has `id uuid pk default gen_random_uuid()`, `created_at`, `updated_a
 | `20261012000002_capture.sql`                  | opportunities, bid_decisions, quotes, quote_lines, registrations, partner_vetting. Visibility predicates (`opportunity_visible`, `can_see_opportunity`, `can_see_account`, `can_see_quote`, `can_see_quote_cost`, …) and the policies that depend on them (accounts, contacts, activities, mentions). The `quote_lines_client` and `quote_lines_internal` views. A trigger that lets only leaders approve. |
 | `20261012000003_bench_events_integration.sql` | consultants (plus the `consultants_public` view), events, event_leads, handoffs, project_health, integration_events.                                                                                                                                                                                                                                                                                       |
 | `20261012000004_client_items.sql`             | client_items. `can_see_record(type, id)` handles polymorphic links. Policies for files and record_tags.                                                                                                                                                                                                                                                                                                    |
+| `20261012000005_pi2.sql`                      | PI-2: copilot_runs, mail_connections, synced_messages, api_keys, webhook_subscriptions, webhook_deliveries. Column-level `SELECT` grants keep OAuth tokens, API key hashes and webhook secrets away from `authenticated` (see below).                                                                                                                                                                      |
 
 Policies that need a later table are created in the migration that adds that table. Until then, the table denies all access to
 `authenticated`.
@@ -52,6 +53,15 @@ Policies that need a later table are created in the migration that adds that tab
 | notifications, recent_views           | own rows                          | own rows                                                                                       | own rows                 | own rows                        |
 | saved_views                           | own rows plus `shared = true`     | same                                                                                           | same                     | same                            |
 | audit_log                             | **admin** reads; everyone appends | append only                                                                                    | append only              | append only                     |
+| copilot_runs                          | read all; insert as self          | own rows; insert as self                                                                       | same as bd               | same as bd                      |
+| mail_connections (no tokens)          | own row: read/update/delete       | same                                                                                           | same                     | same                            |
+| synced_messages                       | read all                          | own rows (read only)                                                                           | own rows                 | own rows                        |
+| api_keys (no `key_hash`)              | own keys; **admin** reads all     | own keys: read, create, revoke (`revoked_at`, `name`)                                          | same as bd               | same as bd                      |
+| webhook_subscriptions (no secret)     | **admin** only (executive: none)  | none                                                                                           | none                     | none                            |
+| webhook_deliveries                    | **admin** only (executive: none)  | none                                                                                           | none                     | none                            |
+
+Inserts into mail_connections and every write to synced_messages happen only through the **service role** (the OAuth
+callback and the sync worker). copilot_runs has no UPDATE or DELETE grant and api_keys no DELETE grant (revoke instead).
 
 Writes to handoff status, project_health and integration_events happen only through the **service role** (the webhooks and
 the retry worker). No user, the database owner included, can UPDATE, DELETE or TRUNCATE `audit_log`: the grants are revoked and
@@ -88,6 +98,18 @@ column grant cannot say "leaders yes, bd no". Two different patterns are used:
 - RLS limits the `consultants` table, `rate_cost` included, to leaders and recruiters. bd and delivery_lead get 0 rows.
 - `consultants_public` is a definer-rights view with `security_barrier`. It has every column except `rate_cost` and is
   filtered to every role except bd. Delivery leads read the bench from this view.
+
+**PI-2 secrets: `mail_connections.access_token_enc` / `refresh_token_enc`, `api_keys.key_hash`,
+`webhook_subscriptions.secret_enc`**
+
+- `authenticated` gets `SELECT` on every other column of these tables, so `select *` (and PostgREST's default
+  `returning *`) fails with `permission denied` for every user, admins included. Select explicit columns.
+- `UPDATE` / `INSERT` privileges are separate from `SELECT`: a user can still disconnect a mailbox (`status = 'revoked'`,
+  tokens set to null) or create a key without being able to read the secret back.
+- The app reads and writes these tables through the **service role** (`src/lib/services/privileged.ts`,
+  `src/lib/api/store.ts`, the mail sync worker) and scopes by user in the service layer. Tokens and webhook secrets are
+  AES-256-GCM ciphertext (`src/lib/server/crypto.ts`, `APP_ENCRYPTION_KEY`); API keys are SHA-256 hashes. See
+  `docs/API.md`.
 
 Definer-rights views and `SECURITY DEFINER` functions are intentional here. Supabase's security advisor will flag them. Each
 one filters on `auth.uid()` or the user's role internally.
@@ -133,7 +155,10 @@ against the same rules. The test also checks:
 - the columns match the seed rows;
 - `anon` has no privileges;
 - writes behave as expected: opportunity edits, approvals, activities written as another user, quote cost leaking through
-  `RETURNING`, handoffs, and the integration tables.
+  `RETURNING`, handoffs, and the integration tables;
+- PI-2 tables (no seed rows, so the test inserts fixtures as the superuser and checks their columns against an explicit
+  list): own-row vs others' rows per role for copilot_runs, mail_connections, synced_messages and api_keys; admin-only
+  webhook tables; `permission denied` on every secret column (and `select *`) for every role; service role reads them.
 
 ```bash
 # any Postgres 16 superuser connection; the test creates and drops its own database

@@ -25,7 +25,9 @@ export const NAV: NavItem[] = [
   { href: "/vetting", label: "Partner vetting", icon: "policy", section: "Readiness" },
   { href: "/settings", label: "Settings", icon: "settings", section: "Admin" },
   { href: "/integrations", label: "Integrations", icon: "hub", section: "Admin" },
+  { href: "/connections", label: "Email & calendar", icon: "mail", section: "Admin" },
   { href: "/audit", label: "Audit log", icon: "history", section: "Admin" },
+  { href: "/developer", label: "API & webhooks", icon: "code", section: "Admin" },
 ];
 
 /** Routes that have shipped. Grows sprint by sprint so the nav never links to an unbuilt page. */
@@ -46,6 +48,8 @@ export const SHIPPED = new Set([
   "/client-items",
   "/bench",
   "/events",
+  "/developer",
+  "/connections",
   "/copilot",
 ]);
 

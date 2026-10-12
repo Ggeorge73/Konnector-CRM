@@ -1,0 +1,8 @@
+{
+  "access_token": "ya29.a0AfB_byC-recorded",
+  "expires_in": 3599,
+  "refresh_token": "1//0gRecordedRefresh",
+  "scope": "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.readonly openid https://www.googleapis.com/auth/userinfo.email",
+  "token_type": "Bearer",
+  "id_token": "eyJhbGciOiAiUlMyNTYiLCAia2lkIjogImsxIn0.eyJpc3MiOiAiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tIiwgInN1YiI6ICIxMDk4IiwgImVtYWlsIjogIk1hcmN1cy5CZWxsQGtvbm5lY3RvcmxsYy5jb20iLCAiZW1haWxfdmVyaWZpZWQiOiB0cnVlfQ.sig"
+}
