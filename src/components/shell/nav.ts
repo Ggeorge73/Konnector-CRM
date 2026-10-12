@@ -1,0 +1,38 @@
+import type { Role } from "@/lib/domain/types";
+import { ROUTE_ROLES } from "@/lib/auth/permissions";
+
+export interface NavItem {
+  href: string;
+  label: string;
+  icon: string;
+  section: "Win" | "Capture" | "Readiness" | "Admin";
+}
+
+export const NAV: NavItem[] = [
+  { href: "/", label: "Pulse", icon: "public", section: "Win" },
+  { href: "/my-work", label: "My Work", icon: "task", section: "Win" },
+  { href: "/accounts", label: "Accounts", icon: "business", section: "Win" },
+  { href: "/contacts", label: "Contacts", icon: "contacts", section: "Win" },
+  { href: "/opportunities", label: "Pipeline", icon: "view_kanban", section: "Capture" },
+  { href: "/forecast", label: "Forecast", icon: "insights", section: "Capture" },
+  { href: "/calendar", label: "Bid calendar", icon: "event", section: "Capture" },
+  { href: "/quotes", label: "Quotes", icon: "request_quote", section: "Capture" },
+  { href: "/client-items", label: "Client items", icon: "outbox", section: "Capture" },
+  { href: "/bench", label: "Bench", icon: "badge", section: "Readiness" },
+  { href: "/events", label: "BD events", icon: "campaign", section: "Readiness" },
+  { href: "/registrations", label: "Registrations", icon: "verified", section: "Readiness" },
+  { href: "/vetting", label: "Partner vetting", icon: "policy", section: "Readiness" },
+  { href: "/settings", label: "Settings", icon: "settings", section: "Admin" },
+  { href: "/audit", label: "Audit log", icon: "history", section: "Admin" },
+];
+
+/** Routes that have shipped. Grows sprint by sprint so the nav never links to an unbuilt page. */
+export const SHIPPED = new Set(["/"]);
+
+export function navFor(role: Role) {
+  return NAV.filter((n) => {
+    if (!SHIPPED.has(n.href)) return false;
+    const allowed = ROUTE_ROLES[n.href];
+    return !allowed || allowed === "all" || allowed.includes(role);
+  });
+}
