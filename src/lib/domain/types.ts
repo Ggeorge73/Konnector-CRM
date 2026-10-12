@@ -1,0 +1,490 @@
+/**
+ * Row types for every table. Mirrors supabase/migrations exactly — change both together.
+ * All rows share BaseRow; money is a number + ISO currency code.
+ */
+
+export interface BaseRow {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  archived_at: string | null;
+}
+
+export type Currency = string; // ISO 4217, default USD
+
+// ---------- Core ----------
+
+export const ROLES = ["admin", "executive", "bd", "delivery_lead", "recruiter"] as const;
+export type Role = (typeof ROLES)[number];
+
+export interface Organization extends BaseRow {
+  name: string;
+  settings: OrgSettings;
+}
+
+export interface OrgSettings {
+  margin_floor_pct: number;
+  bid_weights: Record<BidCriterion, number>;
+  stages: StageDef[];
+  low_survey_threshold: number;
+}
+
+export interface User extends BaseRow {
+  org_id: string;
+  email: string;
+  full_name: string;
+  title: string;
+  role: Role;
+  avatar_color: string;
+  time_zone: string;
+}
+
+export const ACCOUNT_TYPES = [
+  "government_federal",
+  "government_state",
+  "government_local",
+  "government_foreign",
+  "private",
+  "partner_subcontractor",
+  "oem_vendor",
+] as const;
+export type AccountType = (typeof ACCOUNT_TYPES)[number];
+
+export const ACCOUNT_STATUSES = ["prospect", "active_client", "past_client", "partner", "dormant"] as const;
+export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
+
+export interface Account extends BaseRow {
+  org_id: string;
+  name: string;
+  type: AccountType;
+  sector: string;
+  country: string;
+  state_region: string | null;
+  city: string | null;
+  lat: number | null;
+  lng: number | null;
+  website: string | null;
+  logo_url: string | null;
+  owner_id: string;
+  tier: "A" | "B" | "C";
+  status: AccountStatus;
+  konnect_hub_client_id: string | null;
+  survey_score: number | null;
+  description: string | null;
+}
+
+export const BUYING_ROLES = ["decision_maker", "influencer", "procurement_officer", "technical_evaluator", "champion"] as const;
+export type BuyingRole = (typeof BUYING_ROLES)[number];
+
+export interface Contact extends BaseRow {
+  org_id: string;
+  account_id: string;
+  first_name: string;
+  last_name: string;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+  role_in_buying: BuyingRole | null;
+  owner_id: string;
+}
+
+export const ACTIVITY_TYPES = ["note", "email", "call", "meeting", "task", "stage_change", "file", "handoff", "system"] as const;
+export type ActivityType = (typeof ACTIVITY_TYPES)[number];
+
+export type RelatedType =
+  "account" | "contact" | "opportunity" | "quote" | "consultant" | "event" | "registration" | "partner_vetting" | "client_item";
+
+export interface Activity extends BaseRow {
+  org_id: string;
+  type: ActivityType;
+  subject: string;
+  body: string | null;
+  occurred_at: string;
+  related_type: RelatedType;
+  related_id: string;
+  account_id: string | null;
+  actor_id: string | null;
+  mentions: string[];
+  reactions: Record<string, string[]>;
+}
+
+export interface Task extends BaseRow {
+  org_id: string;
+  title: string;
+  due_at: string | null;
+  assignee_id: string;
+  priority: "low" | "medium" | "high";
+  status: "open" | "done";
+  related_type: RelatedType | null;
+  related_id: string | null;
+  account_id: string | null;
+  notes: string | null;
+}
+
+export interface FileRow extends BaseRow {
+  org_id: string;
+  storage_path: string;
+  name: string;
+  size: number;
+  mime: string;
+  related_type: RelatedType;
+  related_id: string;
+}
+
+export interface Tag extends BaseRow {
+  org_id: string;
+  name: string;
+  color: string;
+}
+
+export interface RecordTag extends BaseRow {
+  tag_id: string;
+  related_type: RelatedType;
+  related_id: string;
+}
+
+export interface SavedView extends BaseRow {
+  org_id: string;
+  owner_id: string;
+  entity: "accounts" | "contacts" | "opportunities" | "consultants";
+  name: string;
+  query: Record<string, string>;
+  shared: boolean;
+}
+
+export interface Notification extends BaseRow {
+  user_id: string;
+  kind: "mention" | "assignment" | "deadline" | "expiry" | "client_decision" | "handoff" | "approval" | "alert";
+  title: string;
+  body: string | null;
+  href: string | null;
+  read_at: string | null;
+}
+
+export interface Mention extends BaseRow {
+  activity_id: string;
+  user_id: string;
+}
+
+export interface RecentView extends BaseRow {
+  user_id: string;
+  related_type: RelatedType;
+  related_id: string;
+  label: string;
+}
+
+export interface AuditLog extends BaseRow {
+  org_id: string;
+  actor_id: string | null;
+  action: string;
+  entity: string;
+  entity_id: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+}
+
+// ---------- Opportunities ----------
+
+export const STAGES = ["signal", "qualify", "capture", "bid_no_bid", "proposal", "submitted", "won", "lost", "no_bid"] as const;
+export type Stage = (typeof STAGES)[number];
+
+export interface StageDef {
+  key: Stage;
+  label: string;
+  probability: number;
+  wip_limit: number | null;
+  closed: boolean;
+}
+
+export const OPP_KINDS = ["public_bid", "private_deal", "reseller_quote", "staffing_placement"] as const;
+export type OppKind = (typeof OPP_KINDS)[number];
+
+export const SERVICE_LINES = ["implementation", "systems_integration", "staffing", "reselling", "advisory"] as const;
+export type ServiceLine = (typeof SERVICE_LINES)[number];
+
+export const OPP_SOURCES = ["signal", "referral", "event", "inbound", "partner"] as const;
+export type OppSource = (typeof OPP_SOURCES)[number];
+
+export const PROCUREMENT_VEHICLES = ["Team Georgia Marketplace", "SAM.gov", "GSA schedule", "state contract", "direct"] as const;
+
+export interface Opportunity extends BaseRow {
+  org_id: string;
+  name: string;
+  account_id: string;
+  owner_id: string;
+  kind: OppKind;
+  stage: Stage;
+  value: number;
+  currency: Currency;
+  probability: number;
+  pwin: number | null;
+  expected_close: string | null;
+  source: OppSource;
+  service_lines: ServiceLine[];
+  next_step: string | null;
+  next_step_due: string | null;
+  lost_reason: string | null;
+  no_bid_reason: string | null;
+  shared_with: string[];
+  parent_opportunity_id: string | null;
+  // public-bid fields
+  solicitation_no: string | null;
+  agency_buyer: string | null;
+  procurement_vehicle: string | null;
+  naics: string | null;
+  set_aside: string | null;
+  questions_due: string | null;
+  proposal_due: string | null;
+  submission_method: string | null;
+  incumbent: string | null;
+}
+
+export const BID_CRITERIA = [
+  "strategic_fit",
+  "customer_relationship",
+  "competitive_position",
+  "capability",
+  "staffing_availability",
+  "margin",
+  "risk",
+] as const;
+export type BidCriterion = (typeof BID_CRITERIA)[number];
+
+export interface BidDecision extends BaseRow {
+  opportunity_id: string;
+  scores: Record<BidCriterion, number>;
+  weights: Record<BidCriterion, number>;
+  total_score: number;
+  verdict: "bid" | "no_bid" | "conditional";
+  notes: string | null;
+  decided_by: string | null;
+  status: "pending_approval" | "approved" | "rejected";
+  approved_by: string | null;
+  approved_at: string | null;
+}
+
+export interface Quote extends BaseRow {
+  org_id: string;
+  opportunity_id: string;
+  account_id: string;
+  number: string;
+  title: string;
+  currency: Currency;
+  status: "draft" | "pending_approval" | "approved" | "sent" | "accepted" | "declined";
+  valid_until: string | null;
+  terms: string | null;
+  internal_notes: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  owner_id: string;
+}
+
+export interface QuoteLine extends BaseRow {
+  quote_id: string;
+  position: number;
+  item: string;
+  description: string | null;
+  qty: number;
+  unit_cost: number;
+  unit_price: number;
+  oem_partner_account_id: string | null;
+}
+
+// ---------- Compliance ----------
+
+export interface Registration extends BaseRow {
+  org_id: string;
+  kind: "sam_uei" | "cage" | "georgia_supplier" | "certification" | "insurance" | "license";
+  name: string;
+  identifier: string | null;
+  issuer: string | null;
+  issued_on: string | null;
+  expires_on: string | null;
+  owner_id: string;
+  notes: string | null;
+}
+
+export interface PartnerVetting extends BaseRow {
+  org_id: string;
+  account_id: string;
+  sanctions_screen: "clear" | "hit" | "pending";
+  pep_screen: "clear" | "hit" | "pending";
+  beneficial_ownership: string | null;
+  anti_corruption_attested: boolean;
+  references_checked: boolean;
+  risk_rating: "low" | "medium" | "high";
+  review_due: string | null;
+  reviewer_id: string | null;
+  notes: string | null;
+}
+
+// ---------- Bench ----------
+
+export interface Consultant extends BaseRow {
+  org_id: string;
+  full_name: string;
+  title: string;
+  email: string | null;
+  skills: string[];
+  certifications: string[];
+  rate_cost: number | null;
+  rate_bill: number;
+  currency: Currency;
+  availability_from: string | null;
+  location: string;
+  clearance: string | null;
+  resume_file_id: string | null;
+  status: "available" | "allocated" | "partial" | "inactive";
+}
+
+// ---------- Events ----------
+
+export interface BdEvent extends BaseRow {
+  org_id: string;
+  name: string;
+  kind: "summit" | "expo" | "procurement_fair" | "conference" | "webinar";
+  starts_on: string;
+  ends_on: string;
+  location: string;
+  budget: number;
+  currency: Currency;
+  attendee_ids: string[];
+  notes: string | null;
+}
+
+export interface EventLead extends BaseRow {
+  event_id: string;
+  contact_id: string;
+  interest: string | null;
+  follow_up_task_id: string | null;
+}
+
+// ---------- Integration ----------
+
+export interface Handoff extends BaseRow {
+  opportunity_id: string;
+  status: "pending" | "sent" | "acknowledged" | "failed";
+  attempts: number;
+  last_error: string | null;
+  konnect_hub_project_id: string | null;
+  konnect_hub_url: string | null;
+  payload_version: string;
+  payload: Record<string, unknown>;
+  next_attempt_at: string | null;
+}
+
+export type Rag = "green" | "amber" | "red";
+
+export interface ProjectHealth extends BaseRow {
+  konnect_hub_project_id: string;
+  opportunity_id: string | null;
+  account_id: string | null;
+  project_name: string;
+  health_schedule: Rag;
+  health_budget: Rag;
+  health_acceptance: Rag;
+  percent_complete: number;
+  status: string;
+  hub_updated_at: string;
+  end_date: string | null;
+}
+
+export const CLIENT_ITEM_TYPES = ["quote", "contract_amendment", "renewal_offer", "survey"] as const;
+export type ClientItemType = (typeof CLIENT_ITEM_TYPES)[number];
+export const CLIENT_ITEM_STATUSES = [
+  "draft",
+  "published",
+  "viewed",
+  "accepted",
+  "declined",
+  "changes_requested",
+  "expired",
+  "withdrawn",
+  "superseded",
+] as const;
+export type ClientItemStatus = (typeof CLIENT_ITEM_STATUSES)[number];
+
+export interface ClientItemLine {
+  item: string;
+  description: string | null;
+  qty: number;
+  unit_price: number;
+}
+
+export interface ClientItem extends BaseRow {
+  org_id: string;
+  type: ClientItemType;
+  account_id: string;
+  opportunity_id: string | null;
+  quote_id: string | null;
+  konnect_hub_client_id: string | null;
+  konnect_hub_project_id: string | null;
+  title: string;
+  summary: string | null;
+  amount: number | null;
+  currency: Currency;
+  lines: ClientItemLine[];
+  terms: string | null;
+  new_end_date: string | null;
+  document_file_id: string | null;
+  respond_by: string | null;
+  version: number;
+  lineage_id: string;
+  status: ClientItemStatus;
+  decided_by_name: string | null;
+  decided_by_title: string | null;
+  decided_by_email: string | null;
+  decided_at: string | null;
+  decision_ip: string | null;
+  decision_note: string | null;
+  survey_score: number | null;
+  published_by: string | null;
+  published_at: string | null;
+  owner_id: string;
+}
+
+export interface IntegrationEvent extends BaseRow {
+  direction: "outbound" | "inbound";
+  event: string;
+  idempotency_key: string;
+  status: "pending" | "delivered" | "failed" | "processed" | "rejected";
+  attempts: number;
+  last_error: string | null;
+  payload: Record<string, unknown>;
+  response: Record<string, unknown> | null;
+}
+
+export interface Tables {
+  organizations: Organization;
+  users: User;
+  accounts: Account;
+  contacts: Contact;
+  activities: Activity;
+  tasks: Task;
+  files: FileRow;
+  tags: Tag;
+  record_tags: RecordTag;
+  saved_views: SavedView;
+  notifications: Notification;
+  mentions: Mention;
+  recent_views: RecentView;
+  audit_log: AuditLog;
+  opportunities: Opportunity;
+  bid_decisions: BidDecision;
+  quotes: Quote;
+  quote_lines: QuoteLine;
+  registrations: Registration;
+  partner_vetting: PartnerVetting;
+  consultants: Consultant;
+  events: BdEvent;
+  event_leads: EventLead;
+  handoffs: Handoff;
+  project_health: ProjectHealth;
+  client_items: ClientItem;
+  integration_events: IntegrationEvent;
+}
+
+export type TableName = keyof Tables;
+export type Row<T extends TableName> = Tables[T];
+export type NewRow<T extends TableName> = Omit<Row<T>, keyof BaseRow> & Partial<BaseRow>;
