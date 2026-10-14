@@ -8,7 +8,7 @@
 #   SUPABASE_DB_URL   Postgres connection string for that environment (session pooler, port 5432)
 #   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
 #   VERCEL_AUTOMATION_BYPASS_SECRET  (optional) lets the smoke test through Vercel deployment protection
-# Variables: STAGING_DOMAIN (e.g. crm-staging.konnectorllc.com), PRODUCTION_URL (e.g. https://crm.konnectorllc.com)
+# Variables: DEPLOY_ENABLED=true (repository; turns on automatic staging deploys), STAGING_DOMAIN (e.g. crm-staging.konnectorllc.com), PRODUCTION_URL (e.g. https://crm.konnectorllc.com)
 # App secrets (Supabase keys, CRON_SECRET, ANTHROPIC_API_KEY, …) live only in Vercel's env store.
 name: Deploy
 
@@ -33,9 +33,11 @@ jobs:
   deploy:
     name: Migrate and deploy (${{ github.event.inputs.target || 'staging' }})
     # Automatic runs only after a green CI on a push to main.
+    # Automatic staging deploys stay off until the one-time setup in docs/DEPLOY.md is done and the
+    # repository variable DEPLOY_ENABLED is set to "true".
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+      (vars.DEPLOY_ENABLED == 'true' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.target || 'staging' }}
     env:

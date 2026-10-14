@@ -86,6 +86,9 @@ so releases need a click.
 | `STAGING_DOMAIN` (variable, staging)           | for example `crm-staging.konnectorllc.com`                      |
 | `PRODUCTION_URL` (variable, production)        | for example `https://crm.konnectorllc.com`                      |
 
+Finally, set the repository variable **`DEPLOY_ENABLED` = `true`** (Settings → Secrets and variables →
+Actions → Variables). Until then, merges to `main` don't trigger deploys.
+
 ### 4. First admin
 
 There are no seed users in staging or production. Bootstrap each environment once, after its first migration:
