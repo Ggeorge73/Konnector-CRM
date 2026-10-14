@@ -270,4 +270,7 @@ insert into public.client_items (id, created_at, updated_at, created_by, archive
 -- webhook_deliveries
 -- webhook_deliveries: no seed rows
 
+-- rate_limits
+-- rate_limits: no seed rows
+
 commit;

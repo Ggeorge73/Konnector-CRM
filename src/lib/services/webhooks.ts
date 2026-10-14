@@ -28,6 +28,7 @@ import { findForbiddenKeys } from "@/lib/integration/contract";
 import { backoffMs, MAX_ATTEMPTS } from "@/lib/integration/outbox";
 import { sign } from "@/lib/integration/signing";
 import { decrypt, encrypt } from "@/lib/server/crypto";
+import { logEvent, reportError } from "@/lib/server/observability";
 import { audit } from "./audit";
 import type { Ctx } from "./context-types";
 import { privilegedStore } from "./privileged";
@@ -217,6 +218,12 @@ async function attempt(
   // 4xx other than 408/429 means the receiver rejected the request; retrying won't help.
   const permanent = result.status >= 400 && result.status < 500 && result.status !== 408 && result.status !== 429;
   const failed = permanent || attempts >= MAX_ATTEMPTS;
+  // Ids and status codes only: the receiver's response text is not ours to log.
+  logEvent(
+    "webhook.delivery_failed",
+    { deliveryId: row.id, subscriptionId: sub.id, eventType: row.event, attempts, httpStatus: result.status, final: failed },
+    "warn",
+  );
   return store.update("webhook_deliveries", row.id, {
     status: failed ? "failed" : "pending",
     attempts,
@@ -260,7 +267,10 @@ export async function emitEvent(
   try {
     const leaks = findForbiddenKeys(data);
     if (leaks.length) {
-      console.error(`webhooks: refusing to emit ${event} with internal fields: ${leaks.join(", ")}`);
+      reportError(new Error(`webhooks: refusing to emit ${event} with internal fields: ${leaks.join(", ")}`), {
+        source: "webhooks.emit",
+        userId: c.user.id,
+      });
       return [];
     }
     const store = await privilegedStore(c);
@@ -274,12 +284,12 @@ export async function emitEvent(
       try {
         out.push(await deliverTo(store, s, envelope, c.now, opts.transport));
       } catch (e) {
-        console.error(`webhooks: delivery of ${event} to ${s.id} failed`, e);
+        reportError(e, { source: "webhooks.deliver", userId: c.user.id });
       }
     }
     return out;
   } catch (e) {
-    console.error(`webhooks: emit ${event} failed`, e);
+    reportError(e, { source: "webhooks.emit", userId: c.user.id });
     return [];
   }
 }

@@ -50,6 +50,7 @@ export const TABLE_ORDER: TableName[] = [
   "api_keys",
   "webhook_subscriptions",
   "webhook_deliveries",
+  "rate_limits",
 ];
 
 /** Array columns and their Postgres element type; everything else that is an array/object is jsonb. */

@@ -92,10 +92,11 @@ Always JSON: `{ "error": { "code": "…", "message": "…", "details": … } }`.
 
 ### Rate limit
 
-120 requests per minute per key (token bucket, refilled continuously). Every authenticated response carries
-`RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` (seconds until the bucket is full); a `429` adds
-`Retry-After`. The bucket is in memory per server instance (`src/lib/api/rate-limit.ts`); move it to a shared store if
-the app is scaled out.
+120 requests per minute per key (fixed one-minute windows). Every authenticated response carries
+`RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` (seconds until the window ends); a `429` adds
+`Retry-After`. Limits use the shared `RateLimiter` (`src/lib/rate-limit`): Postgres (`rate_limits` +
+`take_rate_limit()`, service role) in Supabase mode, so they hold across server instances; in memory for the demo
+backend and tests. Keys whose owner is archived or back to pending access are refused (`401`).
 
 ## Outbound webhooks
 

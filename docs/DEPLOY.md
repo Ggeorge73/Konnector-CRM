@@ -88,9 +88,10 @@ so releases need a click.
 
 ### 4. First admin
 
-There are no seed users in staging or production. Sign in once with your `konnectorllc.com` Google account,
-then promote yourself following the steps in `docs/OPERATIONS.md` → "Bootstrap the first admin" (KCRM-68).
-After that, every new person waits on a pending-access screen until an admin assigns them a role (KCRM-69).
+There are no seed users in staging or production. Bootstrap each environment once, after its first migration:
+see `docs/OPERATIONS.md` → "Bootstrap a new environment". It comes down to `pnpm db:bootstrap` before the first
+sign-in, then `pnpm db:bootstrap --admin you@konnectorllc.com` after it. After that, everyone else waits on
+the pending-access screen until an admin assigns them a role in Settings → Team.
 
 ## Releasing
 

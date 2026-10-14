@@ -3,7 +3,7 @@
  * Pure over the Store port — unit-tested against MemoryStore without a server.
  */
 import { z } from "zod";
-import { canEditAccount, canSeeAccount, canSeeBench, canSeeOpportunity, isLeader } from "@/lib/auth/permissions";
+import { canEditAccount, canSeeAccount, canSeeBench, canSeeOpportunity, hasRole, isLeader } from "@/lib/auth/permissions";
 import { ForbiddenError } from "@/lib/auth/errors";
 import {
   ACCOUNT_STATUSES,
@@ -43,8 +43,9 @@ export async function getAccount(c: Ctx, id: string): Promise<Account> {
   return a;
 }
 
+/** Everyone with a role (owners, assignees, mentions). Pending people are left out of pickers. */
 export async function usersById(c: Ctx): Promise<Map<string, User>> {
-  const users = await c.store.list("users");
+  const users = (await c.store.list("users")).filter(hasRole);
   return new Map(users.map((u) => [u.id, u]));
 }
 
@@ -310,7 +311,7 @@ export function extractMentions(body: string | null | undefined, users: User[]):
 
 export async function logActivity(c: Ctx, input: ActivityInputT): Promise<Activity> {
   const v = ActivityInput.parse(input);
-  const users = await c.store.list("users");
+  const users = (await c.store.list("users")).filter(hasRole);
   const mentions = extractMentions(v.body, users);
   const row = await c.store.insert("activities", {
     org_id: c.user.org_id,

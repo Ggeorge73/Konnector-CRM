@@ -35,10 +35,14 @@ export interface User extends BaseRow {
   email: string;
   full_name: string;
   title: string;
-  role: Role;
+  /** null = pending access: signed in from the allowed domain, waiting for an admin to assign a role. */
+  role: Role | null;
   avatar_color: string;
   time_zone: string;
 }
+
+/** A user an admin has let in. Every Ctx carries one; pending users never reach services. */
+export type ActiveUser = User & { role: Role };
 
 export const ACCOUNT_TYPES = [
   "government_federal",
@@ -558,6 +562,17 @@ export interface WebhookDelivery extends BaseRow {
   next_attempt_at: string | null;
 }
 
+/**
+ * Fixed-window rate-limit counter (Copilot per user, REST API per key). Service role only;
+ * written atomically by the take_rate_limit() SQL function. See src/lib/rate-limit.
+ */
+export interface RateLimitRow extends BaseRow {
+  bucket: string;
+  window_start: string;
+  hits: number;
+  expires_at: string;
+}
+
 export interface Tables {
   organizations: Organization;
   users: User;
@@ -592,6 +607,7 @@ export interface Tables {
   api_keys: ApiKey;
   webhook_subscriptions: WebhookSubscription;
   webhook_deliveries: WebhookDelivery;
+  rate_limits: RateLimitRow;
 }
 
 export type TableName = keyof Tables;

@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import { ForbiddenError, ValidationError } from "@/lib/auth/errors";
-import { canSeeAccount, canSeeOpportunity, isLeader } from "@/lib/auth/permissions";
+import { canSeeAccount, canSeeOpportunity, hasRole, isLeader } from "@/lib/auth/permissions";
 import type { Activity, RelatedType, Task } from "@/lib/domain/types";
 import {
   getOpportunity,
@@ -208,7 +208,10 @@ export const resources: Record<Resource, ResourceDef> = {
     create: async (c, body) => {
       const v = TaskInput.parse(only(obj(body), TASK_FIELDS));
       await assertRelatedVisible(c, v.related_type, v.related_id, v.account_id);
-      if (v.assignee_id && !(await c.store.get("users", v.assignee_id))) throw new ValidationError("Unknown assignee.");
+      if (v.assignee_id) {
+        const assignee = await c.store.get("users", v.assignee_id);
+        if (!assignee || assignee.archived_at || !hasRole(assignee)) throw new ValidationError("Unknown assignee.");
+      }
       return asRow(await createTask(c, v));
     },
     /** Only status can change through the API (open ↔ done). */

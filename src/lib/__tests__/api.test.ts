@@ -315,10 +315,15 @@ describe("REST API v1", () => {
     const blocked = await api(c.store, key, "GET", "/tasks?limit=1");
     expect(blocked.status).toBe(429);
     expect(blocked.json.error).toMatchObject({ code: "rate_limited" });
-    expect(Number(blocked.headers.get("Retry-After"))).toBeGreaterThan(0);
-    // Other keys are unaffected; the bucket refills over time.
+    // Fixed one-minute windows: NOW is on a minute boundary, so the window ends in 60 s.
+    expect(blocked.headers.get("Retry-After")).toBe("60");
+    expect(blocked.headers.get("RateLimit-Reset")).toBe("60");
+    // Other keys are unaffected; the key gets a fresh allowance in the next window.
     expect((await api(c.store, other, "GET", "/tasks?limit=1")).status).toBe(200);
-    expect((await api(c.store, key, "GET", "/tasks?limit=1", undefined, new Date(NOW.getTime() + 1_000))).status).toBe(200);
+    expect((await api(c.store, key, "GET", "/tasks?limit=1", undefined, new Date(NOW.getTime() + 30_000))).status).toBe(429);
+    const next = await api(c.store, key, "GET", "/tasks?limit=1", undefined, new Date(NOW.getTime() + 60_000));
+    expect(next.status).toBe(200);
+    expect(next.headers.get("RateLimit-Remaining")).toBe(String(RATE_LIMIT - 1));
   });
 
   it("publishes an OpenAPI 3.1 document covering every resource", () => {

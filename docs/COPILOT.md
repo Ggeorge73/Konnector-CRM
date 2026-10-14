@@ -24,7 +24,8 @@ friendly message and logged with status `refused` or `error`.
 ## Code
 
 - `src/lib/copilot/context.ts` — role-scoped context builders (the only place prompts get CRM data).
-- `src/lib/copilot/run.ts` — permission checks, rate limit, model call, validation, usage log.
+- `src/lib/copilot/run.ts` — permission checks, rate limit (40 requests per user per clock hour on the shared
+  `RateLimiter`, `src/lib/rate-limit`), model call, validation, usage log.
 - `src/lib/copilot/anthropic.ts` — the Claude API adapter (`server-only`).
 - `src/lib/copilot/demo.ts` — demo-mode answers.
 - `src/components/copilot/` — the drawer and the `/copilot` usage page.

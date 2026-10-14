@@ -22,9 +22,10 @@ import {
   canSeeQuoteCost,
   canSeeVetting,
   canViewAudit,
+  type Who,
 } from "../src/lib/auth/permissions";
 import { buildSeed, SEED_USERS } from "../src/lib/data/seed";
-import type { TableName, User } from "../src/lib/domain/types";
+import type { TableName } from "../src/lib/domain/types";
 import { SEED_NOW } from "./generate-seed-sql";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -81,11 +82,10 @@ grant execute on all functions in schema auth to anon, authenticated, service_ro
 // ---------------------------------------------------------------------------
 
 const data = buildSeed(SEED_NOW);
-type Who = Pick<User, "id" | "role">;
 const userById = new Map(data.users.map((u) => [u.id, u]));
 const who = (id: string): Who => {
   const u = userById.get(id);
-  if (!u) throw new Error(`seed user ${id} missing`);
+  if (!u?.role) throw new Error(`seed user ${id} missing or pending`);
   return { id: u.id, role: u.role };
 };
 const oppById = new Map(data.opportunities.map((o) => [o.id, o]));
@@ -326,6 +326,29 @@ async function main() {
         .replaceAll("$3", `'${SEED_USERS.bd2}'`)
         .replaceAll("$4", `'${SEED_USERS.admin}'`),
     );
+    // KCRM-69: someone who signed in from the domain but has no role yet (as the auth callback creates them).
+    await client.query(
+      `insert into auth.users (id, email) values ($1, 'new.starter@konnectorllc.com');
+       insert into public.users (id, org_id, email, full_name, title, role, avatar_color)
+       values ($1, $2, 'new.starter@konnectorllc.com', 'New Starter', '', null, '#0075FF')`
+        .replaceAll("$1", `'${PENDING_USER}'`)
+        .replaceAll("$2", `'${data.organizations[0].id}'`),
+    );
+    {
+      const missing = (
+        await client.query(
+          `select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+           where n.nspname = 'public' and c.relkind = 'r'
+             and not exists (select 1 from pg_policies p where p.schemaname = 'public' and p.tablename = c.relname
+                             and p.permissive = 'RESTRICTIVE' and p.policyname = c.relname || '_active_user_only')`,
+        )
+      ).rows.map((r) => r.relname as string);
+      record(
+        missing.length === 0,
+        "every table has a restrictive <table>_active_user_only policy (pending users see nothing)",
+        missing.join(", "),
+      );
+    }
 
     // Superuser cannot rewrite history either (trigger, not just grants).
     {
@@ -364,11 +387,10 @@ async function main() {
       await s.expectIds("partner_vetting = canSeeVetting", "select id from partner_vetting", expect.partnerVetting(u));
       await s.expectIds("notifications = own only", "select id from notifications", expect.notifications(u));
       await s.expectIds("activities follow record visibility", "select id from activities", expect.activities(u));
-      await s.expectIds(
-        "users: all internal users",
-        "select id from users",
-        data.users.map((x) => x.id),
-      );
+      await s.expectIds("users: all internal users (including pending)", "select id from users", [
+        ...data.users.map((x) => x.id),
+        PENDING_USER,
+      ]);
       await s.expectIds(
         "registrations: all",
         "select id from registrations",
@@ -515,6 +537,9 @@ async function main() {
     );
     await adminS.expectError("cannot delete client_items (withdraw instead)", "delete from client_items");
     await adminS.expectError("cannot TRUNCATE opportunities", "truncate opportunities cascade");
+
+    await pendingChecks(client);
+    await rateLimitChecks(client, sessions);
 
     console.log("\nanon");
     const anon = new Session(client, "anon", null, "anon");
@@ -762,6 +787,116 @@ async function pi2Checks(s: Session, u: Who) {
     await s.expectError("webhook_subscriptions: insert (admin only)", insertHook, [org]);
     await s.expectRowCount("webhook_subscriptions: update (admin only)", "update webhook_subscriptions set active = false", [], 0);
     await s.expectRowCount("webhook_deliveries: delete (admin only)", "delete from webhook_deliveries", [], 0);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// KCRM-69: pending access (role null) — nothing visible, nothing writable
+// ---------------------------------------------------------------------------
+
+const PENDING_USER = "a6900000-0000-4000-8000-000000000001";
+
+async function pendingChecks(client: Client) {
+  console.log("\npending (New Starter) — no role yet");
+  const pending = new Session(client, "pending (New Starter)", PENDING_USER);
+  const relations = (
+    await client.query(
+      `select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public' and c.relkind in ('r', 'v') order by 1`,
+    )
+  ).rows.map((r) => r.relname as string);
+  const leaks: string[] = [];
+  for (const rel of relations) {
+    const r = await pending.exec(`select count(*) from public.${rel} where ${rel === "users" ? `id <> '${PENDING_USER}'` : "true"}`);
+    if ("error" in r) {
+      if (r.error.code !== "42501") leaks.push(`${rel}: ${r.error.message}`);
+      continue;
+    }
+    const n = Number(
+      (await pending.rows(`select count(*)::int as n from public.${rel}${rel === "users" ? ` where id <> '${PENDING_USER}'` : ""}`))[0].n,
+    );
+    if (n !== 0) leaks.push(`${rel}: ${n}`);
+  }
+  record(leaks.length === 0, `${pending.label}: 0 rows in all ${relations.length} tables and views`, leaks.join("; "));
+  await pending.expectIds("users: only their own row", "select id from users", [PENDING_USER]);
+  const flags = (
+    await pending.rows(
+      "select public.is_active_user() as active, public.has_role('admin','executive','bd','delivery_lead','recruiter') as any_role",
+    )
+  )[0];
+  record(flags.active === false && flags.any_role === false, `${pending.label}: is_active_user() and has_role() are false`);
+  await pending.expectRowCount("cannot give themselves a role", "update users set role = 'admin' where id = $1", [PENDING_USER], 0);
+  await pending.expectError(
+    "cannot add a tag (tags_insert is open to every user)",
+    "insert into tags (org_id, name) values ((select org_id from users where id = $1), 'x')",
+    [PENDING_USER],
+  );
+  await pending.expectError(
+    "cannot write the audit log",
+    "insert into audit_log (org_id, actor_id, action, entity, entity_id) values ((select org_id from users where id = $1), $1, 'x', 'users', $1)",
+    [PENDING_USER],
+  );
+  await pending.expectError(
+    "cannot raise notifications",
+    "insert into notifications (user_id, kind, title, created_by) values ($1, 'alert', 'x', $1)",
+    [SEED_USERS.admin],
+  );
+
+  console.log("\nrole assignment — admin only");
+  const admin = new Session(client, "admin (Olugbenga)", SEED_USERS.admin);
+  const exec = new Session(client, "executive (Adaeze)", SEED_USERS.exec);
+  await admin.expectRowCount("admin assigns a role to a pending user", "update users set role = 'bd' where id = $1", [PENDING_USER], 1);
+  await exec.expectRowCount("executive cannot assign roles", "update users set role = 'bd' where id = $1", [PENDING_USER], 0);
+  await admin.expectError("role must be a known role", "update users set role = 'owner' where id = $1", [PENDING_USER], "23514");
+}
+
+// ---------------------------------------------------------------------------
+// KCRM-73: shared rate limiter — service role only
+// ---------------------------------------------------------------------------
+
+async function rateLimitChecks(client: Client, sessions: Record<string, Session>) {
+  console.log("\nrate_limits — service role only");
+  for (const s of Object.values(sessions)) {
+    await s.expectError("rate_limits: select", "select id from rate_limits");
+    await s.expectError(
+      "rate_limits: insert",
+      "insert into rate_limits (bucket, window_start, hits, expires_at) values ('x', now(), 0, now())",
+    );
+    await s.expectError("take_rate_limit(): execute", "select public.take_rate_limit('api:key:x', 120, 60, now())");
+  }
+  const anon = new Session(client, "anon", null, "anon");
+  await anon.expectError("take_rate_limit(): execute", "select public.take_rate_limit('api:key:x', 120, 60, now())");
+
+  await client.query("begin");
+  try {
+    await client.query("set local role service_role");
+    const take = async (at: string) =>
+      Number((await client.query("select public.take_rate_limit('test:bucket', 2, 60, $1::timestamptz) as n", [at])).rows[0].n);
+    const seq = [
+      await take("2026-10-12T15:00:05Z"),
+      await take("2026-10-12T15:00:30Z"),
+      await take("2026-10-12T15:00:59Z"),
+      await take("2026-10-12T15:00:59.9Z"),
+    ];
+    record(JSON.stringify(seq) === "[1,2,3,3]", "service_role: take_rate_limit counts to the limit, then refuses (limit + 1)", String(seq));
+    const rows = (await client.query("select hits, window_start, expires_at from rate_limits where bucket = 'test:bucket'")).rows;
+    record(
+      rows.length === 1 &&
+        rows[0].hits === 2 &&
+        new Date(rows[0].window_start).toISOString() === "2026-10-12T15:00:00.000Z" &&
+        new Date(rows[0].expires_at).toISOString() === "2026-10-12T15:01:00.000Z",
+      "service_role: one row per bucket+window, counter capped at the limit",
+      JSON.stringify(rows),
+    );
+    record((await take("2026-10-12T15:01:00Z")) === 1, "service_role: next window starts again at 1");
+    record((await take("2026-10-12T15:01:00Z")) === 2 && (await take("2026-10-12T15:01:01Z")) === 3, "service_role: …and fills up again");
+    await take("2026-10-12T17:00:00Z");
+    const left = Number((await client.query("select count(*)::int as n from rate_limits where bucket = 'test:bucket'")).rows[0].n);
+    record(left === 1, "service_role: expired windows for the bucket are cleaned up", `got ${left}`);
+  } catch (e) {
+    record(false, "service_role: take_rate_limit", (e as PgError).message);
+  } finally {
+    await client.query("rollback");
   }
 }
 

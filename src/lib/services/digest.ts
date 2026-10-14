@@ -3,8 +3,8 @@
  * items awaiting a client. Sent via Resend when RESEND_API_KEY is set; otherwise returned (demo).
  */
 import { APP_NAME } from "@/config/app";
-import { canSeeOpportunity } from "@/lib/auth/permissions";
-import type { User } from "@/lib/domain/types";
+import { canSeeOpportunity, hasRole } from "@/lib/auth/permissions";
+import type { ActiveUser } from "@/lib/domain/types";
 import { dateLabel } from "@/lib/format";
 import type { Ctx } from "./context-types";
 
@@ -18,7 +18,7 @@ export interface Digest {
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]!);
 
-export async function buildDigest(c: Ctx, user: User): Promise<Digest | null> {
+export async function buildDigest(c: Ctx, user: ActiveUser): Promise<Digest | null> {
   const today = c.now.toISOString().slice(0, 10);
   const week = new Date(c.now.getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
   const [notes, tasks, opps, items] = await Promise.all([
@@ -55,7 +55,7 @@ export async function buildDigest(c: Ctx, user: User): Promise<Digest | null> {
 }
 
 export async function sendDigests(c: Ctx) {
-  const users = await c.store.list("users");
+  const users = (await c.store.list("users")).filter(hasRole); // pending people get no digest
   const out: Digest[] = [];
   for (const u of users) {
     const d = await buildDigest(c, u);

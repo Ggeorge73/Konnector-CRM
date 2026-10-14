@@ -36,12 +36,14 @@ export function LoginView({
 }) {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
-  const [err, setErr] = useState<string | null>(error === "domain" ? `Only @${domain} accounts can sign in.` : null);
+  /** `error` is a message from the server (domain rejected in the callback, etc.). */
+  const [err, setErr] = useState<string | null>(error ?? null);
   const demo = demoUsers.length > 0;
 
   const magic = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.toLowerCase().endsWith(`@${domain}`)) return setErr(`Use your @${domain} email.`);
+    // Convenience only — the server callback enforces the domain (src/app/auth/callback).
+    if (!email.trim().toLowerCase().endsWith(`@${domain}`)) return setErr(`Use your @${domain} email.`);
     const { error } = await supabaseBrowser().auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${location.origin}/auth/callback` },
@@ -98,6 +100,16 @@ export function LoginView({
                   </Button>
                 </form>
               ))}
+            </Stack>
+            <Divider sx={{ my: 4 }}>or</Divider>
+            <Stack component="form" action="/auth/demo" method="post" spacing={2}>
+              <Typography variant="body2" color="text.secondary">
+                New teammate? Sign in with your work email. You&apos;ll wait for an admin to give you access, as in production.
+              </Typography>
+              <TextField label="Work email" name="email" type="email" placeholder={`you@${domain}`} required autoComplete="email" />
+              <Button type="submit" variant="outlined">
+                Sign in with email
+              </Button>
             </Stack>
           </>
         ) : sent ? (

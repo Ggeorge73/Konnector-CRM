@@ -22,6 +22,11 @@ Every table has `id uuid pk default gen_random_uuid()`, `created_at`, `updated_a
 | `20261012000004_client_items.sql`             | client_items. `can_see_record(type, id)` handles polymorphic links. Policies for files and record_tags.                                                                                                                                                                                                                                                                                                    |
 | `20261012000005_pi2.sql`                      | PI-2: copilot_runs, mail_connections, synced_messages, api_keys, webhook_subscriptions, webhook_deliveries. Column-level `SELECT` grants keep OAuth tokens, API key hashes and webhook secrets away from `authenticated` (see below).                                                                                                                                                                      |
 
+| `20261014000001_pending_access.sql` | KCRM-69: `users.role` is nullable — `null` means **pending access** (signed in from `ALLOWED_EMAIL_DOMAIN`, no role yet). `is_active_user()` plus one **restrictive** `<table>_active_user_only` policy on every table, so a pending user sees no rows anywhere and cannot write; on `users` they see only their own row. Only admins change roles (`users_update`). |
+| `20261014000002_rate_limits.sql` | KCRM-73: `rate_limits` (fixed-window counters keyed by `bucket` + `window_start`) and `take_rate_limit(bucket, limit, window_seconds, now)`, an atomic upsert returning the hit count (limit + 1 = refused). Service role only: no grants to `authenticated`/`anon`, function not executable by them. |
+
+**New tables must get a restrictive `<table>_active_user_only` policy** (`using (public.is_active_user())`); the RLS test fails otherwise.
+
 Policies that need a later table are created in the migration that adds that table. Until then, the table denies all access to
 `authenticated`.
 
@@ -158,7 +163,11 @@ against the same rules. The test also checks:
   `RETURNING`, handoffs, and the integration tables;
 - PI-2 tables (no seed rows, so the test inserts fixtures as the superuser and checks their columns against an explicit
   list): own-row vs others' rows per role for copilot_runs, mail_connections, synced_messages and api_keys; admin-only
-  webhook tables; `permission denied` on every secret column (and `select *`) for every role; service role reads them.
+  webhook tables; `permission denied` on every secret column (and `select *`) for every role; service role reads them;
+- pending access (KCRM-69): a fixture user with `role = null` sees 0 rows in every table and view (only their own `users`
+  row), cannot self-assign a role or write anything; every table has its restrictive policy; only admins assign roles;
+- `rate_limits` (KCRM-73): no signed-in role can read/write it or call `take_rate_limit()`; as the service role the
+  function counts to the limit, refuses, rolls over to a new window and cleans up expired windows.
 
 ```bash
 # any Postgres 16 superuser connection; the test creates and drops its own database
