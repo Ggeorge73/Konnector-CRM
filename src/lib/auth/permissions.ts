@@ -2,9 +2,16 @@
  * Role rules, mirrored by Postgres RLS in supabase/migrations. Pure functions so
  * they are unit-tested directly (see src/lib/auth/permissions.test.ts).
  */
-import type { Account, Opportunity, Quote, Role, User } from "@/lib/domain/types";
+import type { Account, ActiveUser, Opportunity, Quote, Role, User } from "@/lib/domain/types";
 
-type Who = Pick<User, "id" | "role">;
+/** Every rule below takes a user who has a role; pending users are stopped before them. */
+export type Who = { id: string; role: Role };
+
+/** Pending access: signed in, but no admin has assigned a role yet. */
+export const PENDING_LABEL = "Pending access";
+
+export const hasRole = (u: User): u is ActiveUser => u.role !== null;
+export const roleLabel = (role: Role | null) => (role ? ROLE_LABEL[role] : PENDING_LABEL);
 
 export const ROLE_LABEL: Record<Role, string> = {
   admin: "Admin",

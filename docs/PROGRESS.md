@@ -146,4 +146,51 @@ Notes / inspect & adapt:
 
 - In Supabase mode the API uses the service role (no user JWT behind an API key), so access control for API
   requests lives in the service layer — see "Security model" in `docs/API.md`.
+- The rate limiter is per server instance; move it to a shared store before scaling out. (Done in S9-07 below.)
+
+## PI-3 Sprint 9 — S9-03 sign-in hardening (KCRM-69) and S9-07 shared rate limiter (KCRM-73)
+
+Delivered:
+
+- Sign-in admission on the server (`admitSignIn`, `src/lib/services/users.ts`) used by the OAuth / magic-link callback
+  and the demo email sign-in: exact `ALLOWED_EMAIL_DOMAIN` match (comma-separated list allowed; no subdomains or
+  look-alikes), verified email required, deactivated users refused; refused sessions are signed out.
+- Pending access: new people get a users row with `role = null`. `requireUser()` sends them to `/pending` from every
+  app route, action and API route; API keys of pending owners are refused; RLS (`20261014000001_pending_access.sql`)
+  hides every row from them via restrictive policies. Admins are notified; pending people are left out of pickers,
+  mentions and digests.
+- Settings → Team: admins assign, change or revoke roles (not their own); `user.role_changed` /
+  `user.access_revoked` audit entries; the person is notified.
+- One `RateLimiter` port (`src/lib/rate-limit`) for Copilot (40/hour/user) and the REST API (120/min/key, same
+  headers and messages): Postgres `rate_limits` + atomic `take_rate_limit()` in Supabase mode, memory in demo/tests.
+- Tests: `access.test.ts`, `rate-limit.test.ts`, `e2e/access.spec.ts`; RLS test covers pending users and `rate_limits`.
+
+Notes / inspect & adapt:
+
+- Rate limits are now fixed windows (were a token bucket / sliding log): up to 2x the limit can pass across a window
+  boundary. `RateLimit-Reset` is seconds until the window ends.
+- Magic-link sign-up still creates an `auth.users` row for any address before the callback rejects it; add a
+  Supabase "before user created" auth hook if that matters.
 - The rate limiter is per server instance; move it to a shared store before scaling out.
+
+## PI-3 Sprint 9 — Observability (KCRM-72, S9-06) and security headers (KCRM-74, S9-08)
+
+Delivered:
+
+- `GET /api/health` (public): database, Konnect Hub (`mock` when mocked) and version checks, ~2 s timeout each,
+  503 only when the database is down, Hub problems are "degraded". No error text or hostnames in the output.
+- `src/lib/server/observability.ts`: `logEvent` / `reportError` write JSON lines to stdout and optionally POST errors to
+  `ERROR_WEBHOOK_URL`; payloads are allow-listed and scrubbed (no bodies, emails or tokens). Wired into `run()`, API v1,
+  cron routes, Konnect Hub and webhook deliveries, the OAuth callback and `src/instrumentation.ts` (`onRequestError`).
+- Cron routes accept GET (Vercel Cron) as well as POST, same bearer check, and log a completion line per run.
+- Security headers: nonce-based CSP from middleware (`'strict-dynamic'`, no inline/eval scripts in production), HSTS in
+  production, X-Frame-Options DENY + `frame-ancestors 'none'`, Referrer-Policy, Permissions-Policy, nosniff.
+- `pnpm audit --prod` clean (postcss override under Next); `pnpm keys:rotate-encryption` re-encrypts stored secrets.
+- Runbooks: `docs/OPERATIONS.md` (uptime, logs, jobs, re-running deliveries) and `docs/SECURITY.md` (CSP rationale,
+  audit and waivers, secret rotation).
+
+Notes / inspect & adapt:
+
+- No error-tracking vendor yet (PO decision); `ERROR_WEBHOOK_URL` is the hook for one.
+- Styles keep `'unsafe-inline'` (emotion + React style attributes); scripts are nonce-only.
+- `KONNECTOR_INTEGRATION_SECRET` rotation needs a short coordinated window; accepting a previous secret is a follow-up.

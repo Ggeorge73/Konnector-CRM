@@ -1,5 +1,6 @@
 import { APP_NAME, COMPANY_NAME, env, isDemo } from "@/config/app";
-import { ROLE_LABEL } from "@/lib/auth/permissions";
+import { SIGN_IN_ERRORS } from "@/lib/auth/access";
+import { roleLabel } from "@/lib/auth/permissions";
 import { demoStore } from "@/lib/server/store";
 import { LoginView } from "./LoginView";
 
@@ -12,9 +13,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         id: u.id,
         name: u.full_name,
         title: u.title,
-        role: ROLE_LABEL[u.role],
+        role: roleLabel(u.role),
         color: u.avatar_color,
       }))
     : [];
-  return <LoginView appName={APP_NAME} company={COMPANY_NAME} domain={env.allowedEmailDomain} demoUsers={demoUsers} error={error} />;
+  const message =
+    error && error in SIGN_IN_ERRORS ? SIGN_IN_ERRORS[error as keyof typeof SIGN_IN_ERRORS](env.allowedEmailDomain) : undefined;
+  return <LoginView appName={APP_NAME} company={COMPANY_NAME} domain={env.allowedEmailDomain} demoUsers={demoUsers} error={message} />;
 }

@@ -1,4 +1,5 @@
 import type { IntegrationEvent } from "@/lib/domain/types";
+import { logEvent, reportError } from "@/lib/server/observability";
 import type { Ctx } from "@/lib/services/context-types";
 import { findForbiddenKeys } from "./contract";
 import { defaultTransport, signBody, type Transport, type TransportResult } from "./transport";
@@ -55,8 +56,21 @@ async function attempt(c: Ctx, row: IntegrationEvent, transport: Transport): Pro
   const error = `HTTP ${result.status}: ${String(result.body.error ?? "delivery failed")}`;
   // 4xx (other than 408/429) is a contract error — retrying won't help.
   const permanent = result.status >= 400 && result.status < 500 && result.status !== 408 && result.status !== 429;
+  const failed = permanent || attempts >= MAX_ATTEMPTS;
+  // Status codes and ids only: the Hub's error text could echo payload content.
+  logEvent(
+    "konnect_hub.delivery_failed",
+    { integrationEventId: row.id, eventType: row.event, attempts, httpStatus: result.status, final: failed },
+    "warn",
+  );
+  if (failed) {
+    reportError(new Error(`Konnect Hub delivery of ${row.event} failed after ${attempts} attempt(s) (HTTP ${result.status})`), {
+      source: "integration.konnect_hub",
+      userId: c.user.id,
+    });
+  }
   return c.store.update("integration_events", row.id, {
-    status: permanent || attempts >= MAX_ATTEMPTS ? "failed" : "pending",
+    status: failed ? "failed" : "pending",
     attempts,
     last_error: error,
     response: { ...result.body, next_attempt_at: permanent ? null : new Date(c.now.getTime() + backoffMs(attempts)).toISOString() },

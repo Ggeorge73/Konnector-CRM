@@ -54,7 +54,8 @@ export async function buildWonPayload(c: Ctx, opportunityId: string, input: Hand
   const o = await getOpportunity(c, opportunityId);
   const account = await getAccount(c, o.account_id);
   const lead = await c.store.get("users", v.delivery_lead_id);
-  if (!lead || !["delivery_lead", "admin", "executive"].includes(lead.role)) throw new ValidationError("Pick a delivery lead.");
+  if (!lead || !lead.role || !["delivery_lead", "admin", "executive"].includes(lead.role))
+    throw new ValidationError("Pick a delivery lead.");
   const contacts = await Promise.all(v.client_contacts.map(async (cc) => ({ cc, row: await c.store.get("contacts", cc.contact_id) })));
   const invites = contacts.map(({ cc, row }) => {
     if (!row || row.account_id !== account.id) throw new ValidationError("Client contacts must belong to this account.");

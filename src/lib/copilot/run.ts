@@ -6,6 +6,7 @@ import { z } from "zod";
 import { ForbiddenError, ValidationError } from "@/lib/auth/errors";
 import { canSeeBidDecision } from "@/lib/auth/permissions";
 import type { CopilotTask, RelatedType } from "@/lib/domain/types";
+import { buckets, getRateLimiter, memoryRateLimiter, type RateLimiter, type RateLimitRule } from "@/lib/rate-limit";
 import { getOpportunity } from "@/lib/services/capture";
 import type { Ctx } from "@/lib/services/context-types";
 import { actorId } from "@/lib/services/system";
@@ -77,19 +78,12 @@ const EFFORT: Record<CopilotTask, "low" | "medium" | "high"> = {
   rfp_checklist: "high",
 };
 
-// ---------- rate limit (per user, per hour, in-process) ----------
-const WINDOW_MS = 60 * 60_000;
+// ---------- rate limit (per user, per hour; shared RateLimiter — Postgres in Supabase mode) ----------
 export const COPILOT_HOURLY_LIMIT = 40;
-const g = globalThis as unknown as { __kcrmCopilotHits?: Map<string, number[]> };
-function takeToken(userId: string, now: number) {
-  const hits = ((g.__kcrmCopilotHits ??= new Map<string, number[]>()).get(userId) ?? []).filter((t: number) => now - t < WINDOW_MS);
-  if (hits.length >= COPILOT_HOURLY_LIMIT) return false;
-  hits.push(now);
-  g.__kcrmCopilotHits.set(userId, hits);
-  return true;
-}
+export const COPILOT_RATE_RULE: RateLimitRule = { limit: COPILOT_HOURLY_LIMIT, windowMs: 60 * 60_000 };
+/** Tests only: clears the Copilot buckets of the in-memory limiter. */
 export function resetCopilotRateLimit() {
-  g.__kcrmCopilotHits = new Map();
+  memoryRateLimiter().reset("copilot:");
 }
 
 async function record(
@@ -119,6 +113,7 @@ export async function runCopilot<T extends CopilotTask>(
   c: Ctx,
   input: CopilotInput & { task: T },
   model: CopilotModel | null,
+  deps?: { limiter?: RateLimiter },
 ): Promise<CopilotResult<T>> {
   const task = input.task as T;
   const related = relatedOf(input);
@@ -128,7 +123,8 @@ export async function runCopilot<T extends CopilotTask>(
     const o = await getOpportunity(c, inp.opportunityId);
     if (!canSeeBidDecision(c.user, o)) throw new ForbiddenError("Bid scoring is restricted to the deal owner and executives.");
   }
-  if (!takeToken(c.user.id, c.now.getTime()))
+  const limiter = deps?.limiter ?? (await getRateLimiter());
+  if (!(await limiter.take(buckets.copilot(c.user.id), COPILOT_RATE_RULE, c.now)).allowed)
     throw new ValidationError(`Copilot limit reached (${COPILOT_HOURLY_LIMIT} requests an hour). Try again shortly.`);
 
   // Build the context (role-scoped) — shared by live and demo modes.

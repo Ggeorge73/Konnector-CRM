@@ -38,6 +38,7 @@ export function emptyDataset(): Dataset {
     "api_keys",
     "webhook_subscriptions",
     "webhook_deliveries",
+    "rate_limits",
   ];
   return Object.fromEntries(names.map((n) => [n, []])) as unknown as Dataset;
 }

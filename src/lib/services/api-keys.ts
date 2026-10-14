@@ -6,8 +6,9 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { ForbiddenError, ValidationError } from "@/lib/auth/errors";
+import { hasRole } from "@/lib/auth/permissions";
 import type { Store } from "@/lib/data/store";
-import { API_SCOPES, type ApiKey, type ApiScope, type User } from "@/lib/domain/types";
+import { API_SCOPES, type ApiKey, type ApiScope, type ActiveUser } from "@/lib/domain/types";
 import { sha256 } from "@/lib/server/crypto";
 import { audit } from "./audit";
 import type { Ctx } from "./context-types";
@@ -81,7 +82,7 @@ export async function revokeApiKey(c: Ctx, id: string): Promise<ApiKeyView> {
   return view(row);
 }
 
-export type ApiAuth = { ok: true; user: User; key: ApiKeyView; scopes: ApiScope[] } | { ok: false; reason: string };
+export type ApiAuth = { ok: true; user: ActiveUser; key: ApiKeyView; scopes: ApiScope[] } | { ok: false; reason: string };
 
 /** Parses `kcrm_<8 hex>_<64 hex>`; returns the prefix or null. */
 export function parseKey(raw: string): { prefix: string } | null {
@@ -106,7 +107,8 @@ export async function authenticateApiKey(store: Store, header: string | null, no
   if (k.revoked_at || k.archived_at) return { ok: false, reason: "API key revoked." };
   if (k.expires_at && new Date(k.expires_at) <= now) return { ok: false, reason: "API key expired." };
   const user = await store.get("users", k.user_id);
-  if (!user || user.archived_at) return { ok: false, reason: "API key owner is no longer active." };
+  // Archived owners and owners whose access was revoked (pending, role null) are refused.
+  if (!user || user.archived_at || !hasRole(user)) return { ok: false, reason: "API key owner is no longer active." };
   let key = k;
   if (!k.last_used_at || now.getTime() - new Date(k.last_used_at).getTime() >= LAST_USED_RESOLUTION_MS) {
     key = await store.update("api_keys", k.id, { last_used_at: now.toISOString() });

@@ -61,7 +61,11 @@ Pull Request → Testing → Done, same as DiamondEcho). Move tickets as work pr
 
 - `POST /api/cron/integrations` (every 5 min) — retry due Konnect Hub deliveries. `POST /api/cron/daily` —
   client-item expiry + nudges, registration/vetting reminders, email digests. `POST /api/cron/mail-sync` (every 15 min) —
-  mailbox/calendar sync. All need `Authorization: Bearer $CRON_SECRET`. The integrations cron also retries webhooks.
+  mailbox/calendar sync. All accept GET (Vercel Cron, schedules in `vercel.json`) or POST and need
+  `Authorization: Bearer $CRON_SECRET`. The integrations cron also retries webhooks.
+- Production: Vercel + Supabase Pro (`docs/adr/0001-hosting.md`, setup in `docs/DEPLOY.md`, runbooks in
+  `docs/OPERATIONS.md` and `docs/SECURITY.md`). New users are **pending** (`users.role` null) until an admin assigns
+  a role; every new table needs its restrictive `<table>_active_user_only` RLS policy (rls-test enforces it).
 - PI-2: Copilot (`lib/copilot`, `docs/COPILOT.md`; Claude API server-side only, demo without `ANTHROPIC_API_KEY`),
   mail sync (`lib/mail`, `docs/MAIL.md`), REST API v1 + webhooks (`lib/api`, `docs/API.md`, `/developer`).
 - Contract and event list: `docs/INTEGRATION.md`. PI-2 plan: `docs/PI-2.md`. Database and RLS: `docs/DATABASE.md`.

@@ -21,6 +21,7 @@ const eslintConfig = [
       "node_modules/**",
       ".next/**",
       ".next-*/**",
+      ".claude/worktrees/**",
       "out/**",
       "build/**",
       "next-env.d.ts",

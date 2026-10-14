@@ -1,8 +1,9 @@
 import type { Store } from "@/lib/data/store";
-import type { User } from "@/lib/domain/types";
+import type { ActiveUser } from "@/lib/domain/types";
 
 export interface Ctx {
-  user: User;
+  /** Always a user with a role: pending users are stopped in requireUser() / authenticateApiKey(). */
+  user: ActiveUser;
   store: Store;
   now: Date;
 }

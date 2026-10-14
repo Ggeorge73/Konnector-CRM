@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { hasRole } from "@/lib/auth/permissions";
+import { reportError } from "@/lib/server/observability";
 import { currentUser } from "@/lib/auth/session";
 import { isMailProvider, mailClient, pkceVerifier, verifyState } from "@/lib/mail";
 import { getStore } from "@/lib/server/store";
@@ -14,6 +16,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
   const back = (p: Record<string, string>) => NextResponse.redirect(new URL(`/connections?${new URLSearchParams(p)}`, req.url));
   const user = await currentUser();
   if (!user) return NextResponse.redirect(new URL("/login", req.url));
+  if (!hasRole(user)) return NextResponse.redirect(new URL("/pending", req.url));
   if (!isMailProvider(provider)) return back({ error: "Unknown provider." });
   if (q.get("error")) return back({ error: q.get("error_description") ?? q.get("error") ?? "Access was not granted." });
   const state = q.get("state") ?? "";
@@ -25,7 +28,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
     const tokens = await mailClient(provider, req.nextUrl.origin).exchangeCode(code, pkceVerifier(state));
     await saveConnection({ user, store: await getStore(), now: new Date() }, provider, tokens);
   } catch (e) {
-    console.error("mail oauth callback", e instanceof Error ? e.message : e);
+    reportError(e, { source: "oauth.callback", route: req.nextUrl.pathname, userId: user.id });
     return back({ error: "We couldn't finish connecting your mailbox. Please try again." });
   }
   return back({ connected: provider });

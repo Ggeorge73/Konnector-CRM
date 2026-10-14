@@ -5,8 +5,8 @@
  */
 import { z } from "zod";
 import { ForbiddenError, ValidationError } from "@/lib/auth/errors";
-import { isLeader } from "@/lib/auth/permissions";
-import { ACCOUNT_TYPES, type Account, type BdEvent, type Contact, type EventLead, type Task, type User } from "@/lib/domain/types";
+import { hasRole, isLeader, type Who } from "@/lib/auth/permissions";
+import { ACCOUNT_TYPES, type Account, type BdEvent, type Contact, type EventLead, type Task } from "@/lib/domain/types";
 import { audit, diff } from "./audit";
 import type { Ctx } from "./context-types";
 import { createAccount, createContact, createTask, getAccount, getContact, logActivity, visibleAccounts } from "./core";
@@ -14,7 +14,7 @@ import { actorId } from "./system";
 
 export const EVENT_KINDS = ["summit", "expo", "procurement_fair", "conference", "webinar"] as const;
 
-export const canRunEvents = (u: Pick<User, "id" | "role">) => isLeader(u) || u.role === "bd";
+export const canRunEvents = (u: Who) => isLeader(u) || u.role === "bd";
 
 function assertEvents(c: Ctx) {
   if (!canRunEvents(c.user)) throw new ForbiddenError("BD events are for business development and leadership.");
@@ -105,7 +105,7 @@ export type EventInputT = z.input<typeof EventInput>;
 export async function saveEvent(c: Ctx, input: EventInputT, id?: string): Promise<BdEvent> {
   assertEvents(c);
   const v = EventInput.parse(input);
-  const users = new Set((await c.store.list("users")).map((u) => u.id));
+  const users = new Set((await c.store.list("users")).filter(hasRole).map((u) => u.id));
   const attendees = v.attendee_ids.filter((a) => users.has(a));
   if (!id) {
     const row = await c.store.insert("events", {

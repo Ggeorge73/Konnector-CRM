@@ -7,9 +7,11 @@ import { ZodError } from "zod";
 import { ForbiddenError, ValidationError } from "@/lib/auth/errors";
 import type { Store } from "@/lib/data/store";
 import type { ApiScope } from "@/lib/domain/types";
+import { reportError } from "@/lib/server/observability";
 import { authenticateApiKey } from "@/lib/services/api-keys";
 import type { Ctx } from "@/lib/services/context-types";
-import { rateLimitHeaders, takeToken } from "./rate-limit";
+import { getRateLimiter, type RateLimiter } from "@/lib/rate-limit";
+import { rateLimitHeaders, takeApiToken } from "./rate-limit";
 import { BadRequest, paginate, resources, type Resource } from "./resources";
 
 export type ErrorCode =
@@ -49,7 +51,7 @@ function json(body: unknown, status = 200, headers: Record<string, string> = {})
 export type Op = "list" | "get" | "create" | "update";
 const SCOPE: Record<Op, ApiScope> = { list: "read", get: "read", create: "write", update: "write" };
 
-function mapError(e: unknown, op: Op, headers: Record<string, string>): Response {
+function mapError(e: unknown, op: Op, headers: Record<string, string>, where: { route: string; userId: string }): Response {
   if (e instanceof BadRequest) return apiError("bad_request", e.message, undefined, headers);
   if (e instanceof ZodError) {
     return apiError(
@@ -65,7 +67,7 @@ function mapError(e: unknown, op: Op, headers: Record<string, string>): Response
     if (op === "get" || /not found/i.test(e.message)) return apiError("not_found", "Not found.", undefined, headers);
     return apiError("forbidden", e.message, undefined, headers);
   }
-  console.error("api/v1", e);
+  reportError(e, { source: "api.v1", route: where.route, userId: where.userId });
   return apiError("internal", "Something went wrong.", undefined, headers);
 }
 
@@ -76,7 +78,7 @@ function mapError(e: unknown, op: Op, headers: Record<string, string>): Response
 export async function handleApi(
   req: Request,
   route: { resource: Resource; id?: string },
-  deps: { store: Store; now?: () => Date },
+  deps: { store: Store; now?: () => Date; limiter?: RateLimiter },
 ): Promise<Response> {
   const def = resources[route.resource];
   const op: Op | null =
@@ -98,7 +100,7 @@ export async function handleApi(
   const auth = await authenticateApiKey(deps.store, req.headers.get("authorization"), now);
   if (!auth.ok) return apiError("unauthorized", auth.reason, undefined, { "WWW-Authenticate": 'Bearer realm="konnector-crm"' });
 
-  const rl = takeToken(auth.key.id, now.getTime());
+  const rl = await takeApiToken(deps.limiter ?? (await getRateLimiter()), auth.key.id, now);
   const headers = rateLimitHeaders(rl);
   if (!rl.allowed) return apiError("rate_limited", `Rate limit exceeded (${rl.limit} requests per minute).`, undefined, headers);
 
@@ -118,6 +120,6 @@ export async function handleApi(
     if (op === "create") return json({ data: await def.create!(c, body) }, 201, headers);
     return json({ data: await def.update!(c, route.id!, body) }, 200, headers);
   } catch (e) {
-    return mapError(e, op, headers);
+    return mapError(e, op, headers, { route: new URL(req.url).pathname, userId: auth.user.id });
   }
 }

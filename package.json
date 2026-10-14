@@ -15,6 +15,8 @@
     "test:e2e": "playwright test",
     "test:rls": "tsx scripts/rls-test.ts",
     "db:seed-sql": "tsx scripts/generate-seed-sql.ts",
+    "db:bootstrap": "tsx scripts/bootstrap.ts",
+    "keys:rotate-encryption": "tsx scripts/rotate-encryption-key.ts",
     "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test"
   },
   "dependencies": {
@@ -71,5 +73,10 @@
   "packageManager": "pnpm@10.28.0",
   "engines": {
     "node": ">=20"
+  },
+  "pnpm": {
+    "overrides": {
+      "next>postcss": "8.5.29"
+    }
   }
 }

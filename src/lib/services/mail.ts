@@ -8,6 +8,7 @@
 import { z } from "zod";
 import { env } from "@/config/app";
 import { ForbiddenError, ValidationError } from "@/lib/auth/errors";
+import { hasRole } from "@/lib/auth/permissions";
 import type { Contact, MailConnection, MailProvider, SyncedMessage, User } from "@/lib/domain/types";
 import {
   mailClient,
@@ -177,7 +178,7 @@ export async function syncConnection(c: Ctx, connectionId: string, deps?: MailDe
   const conn = await ownConnection(c, connectionId);
   if (conn.status === "revoked") throw new ValidationError("This connection was disconnected. Connect it again to sync.");
   const owner: User | null = conn.user_id === c.user.id ? c.user : await c.store.get("users", conn.user_id);
-  if (!owner) throw new ForbiddenError("Connection owner not found.");
+  if (!owner || !hasRole(owner)) throw new ForbiddenError("Connection owner not found.");
   // Timeline entries are attributed to the mailbox owner, even when the cron runs the sync.
   const uc: Ctx = { ...c, user: owner };
   const client = resolveClient(deps, conn.provider);
