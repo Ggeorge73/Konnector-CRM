@@ -29,14 +29,14 @@ system demo), tickets moved to Done, and `docs/PROGRESS.md` updated (= inspect &
 
 ## Plan
 
-| Sprint                    | Epic   | Stories      | Points | Business value    |
-| ------------------------- | ------ | ------------ | ------ | ----------------- |
-| S1 Foundation             | KCRM-1 | KCRM-7 … 14  | 35     | 8                 |
-| S2 Core CRM               | KCRM-2 | KCRM-15 … 22 | 35     | 9                 |
-| S3 Capture pipeline       | KCRM-3 | KCRM-23 … 31 | 41     | 10                |
-| S4 Bench, handoff, Pulse  | KCRM-4 | KCRM-32 … 37 | 34     | 9                 |
-| S5 Client commercial loop | KCRM-5 | KCRM-38 … 44 | 29     | 8                 |
-| IP / PI-2 candidate       | KCRM-6 | —            | —      | needs PO approval |
+| Sprint                    | Epic   | Stories      | Points | Business value                                             |
+| ------------------------- | ------ | ------------ | ------ | ---------------------------------------------------------- |
+| S1 Foundation             | KCRM-1 | KCRM-7 … 14  | 35     | 8                                                          |
+| S2 Core CRM               | KCRM-2 | KCRM-15 … 22 | 35     | 9                                                          |
+| S3 Capture pipeline       | KCRM-3 | KCRM-23 … 31 | 41     | 10                                                         |
+| S4 Bench, handoff, Pulse  | KCRM-4 | KCRM-32 … 37 | 34     | 9                                                          |
+| S5 Client commercial loop | KCRM-5 | KCRM-38 … 44 | 29     | 8                                                          |
+| IP / PI-2 candidate       | KCRM-6 | —            | —      | delivered in PI-2 (`docs/PI-2.md`); PI-3 in `docs/PI-3.md` |
 
 ## Risks (ROAM)
 
