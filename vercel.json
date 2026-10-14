@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "git": { "deploymentEnabled": { "main": false } },
+  "crons": [
+    { "path": "/api/cron/integrations", "schedule": "*/5 * * * *" },
+    { "path": "/api/cron/mail-sync", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/daily", "schedule": "55 10 * * *" }
+  ]
+}

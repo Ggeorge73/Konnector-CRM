@@ -1,6 +1,6 @@
 # ADR 0001 — Hosting, database plan and production sign-in
 
-- **Status:** Proposed. Waiting on the Product Owner's decision (Jira KCRM-67).
+- **Status:** Accepted, 2026-10-14 (Jira KCRM-67).
 - **Date:** 2026-10-14
 - **Deciders:** Olugbenga George (PO / Business Owner)
 
@@ -85,13 +85,15 @@ What the app needs from a host:
 
 ## Decision
 
-_To be filled in by the PO._ Once decided, this ADR is set to **Accepted**, and these stories can start:
+The PO accepted the recommendations on 2026-10-14:
 
-- KCRM-68 (Supabase production)
-- KCRM-70 (CI/CD)
-- KCRM-71 (scheduled jobs)
+- **Hosting:** Vercel (Pro, for the 5-minute cron and team seats), US East region (`iad1`).
+- **Database:** Supabase Pro, with one project each for **staging** and **production**. Point-in-time recovery is turned on for production.
+- **Sign-in:** Google plus magic link, limited to `konnectorllc.com`.
 
-## Consequences (if Vercel + Supabase Pro are chosen)
+Setup steps: `docs/DEPLOY.md`.
+
+## Consequences
 
 - `vercel.json` declares the three cron schedules. `CRON_SECRET` is set per environment.
 - The Supabase ↔ Vercel integration manages the database environment variables. All other secrets are set

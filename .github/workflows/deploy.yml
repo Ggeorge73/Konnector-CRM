@@ -1,0 +1,82 @@
+# Staging and production releases (KCRM-70). PR previews are built by Vercel's GitHub integration;
+# main is NOT auto-deployed by Vercel (vercel.json) so that migrations always run first, here.
+#
+#   push to main                → CI green → migrate staging DB → deploy to Vercel "staging"
+#   Run workflow (production)   → migrate production DB → deploy to Vercel production
+#
+# Secrets (GitHub → Settings → Environments "staging" and "production"):
+#   SUPABASE_DB_URL   Postgres connection string for that environment (session pooler, port 5432)
+#   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+#   VERCEL_AUTOMATION_BYPASS_SECRET  (optional) lets the smoke test through Vercel deployment protection
+# Variables: STAGING_DOMAIN (e.g. crm-staging.konnectorllc.com), PRODUCTION_URL (e.g. https://crm.konnectorllc.com)
+# App secrets (Supabase keys, CRON_SECRET, ANTHROPIC_API_KEY, …) live only in Vercel's env store.
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Environment to release
+        type: choice
+        options: [staging, production]
+        default: production
+
+concurrency:
+  group: deploy-${{ github.event.inputs.target || 'staging' }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Migrate and deploy (${{ github.event.inputs.target || 'staging' }})
+    # Automatic runs only after a green CI on a push to main.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target || 'staging' }}
+    env:
+      TARGET: ${{ github.event.inputs.target || 'staging' }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Apply database migrations
+        run: supabase db push --db-url "${{ secrets.SUPABASE_DB_URL }}" --include-all
+      - run: pnpm add --global vercel@latest
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=${{ env.TARGET == 'production' && 'production' || 'preview' }} --git-branch=${{ env.TARGET == 'staging' && 'staging' || 'main' }} --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build
+        run: vercel build ${{ env.TARGET == 'production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt ${{ env.TARGET == 'production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - name: Point the staging alias at this build
+        if: env.TARGET == 'staging' && vars.STAGING_DOMAIN != ''
+        run: vercel alias set "${{ steps.deploy.outputs.url }}" "${{ vars.STAGING_DOMAIN }}" --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Smoke test /api/health
+        run: |
+          base="${{ env.TARGET == 'production' && vars.PRODUCTION_URL || steps.deploy.outputs.url }}"
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /tmp/health.json -w '%{http_code}' -H "x-vercel-protection-bypass: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}" "$base/api/health") && [ "$code" = 200 ] && cat /tmp/health.json && exit 0
+            sleep 10
+          done
+          echo "health check failed ($code)"; cat /tmp/health.json; exit 1
