@@ -44,3 +44,6 @@ next-env.d.ts
 /playwright-report/
 /test-results/
 /.next-*/
+
+# Claude Code agent worktrees (temporary)
+.claude/worktrees/
