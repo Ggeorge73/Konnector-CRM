@@ -20,13 +20,16 @@ and mocks. PI-3 turns it into the system the team works in every day.
 
 ## Plan
 
-| Sprint                       | Team                       | Focus                                                                         |
-| ---------------------------- | -------------------------- | ----------------------------------------------------------------------------- |
-| S9 Production platform       | `team-platform`            | Hosting, Supabase prod, CI/CD, scheduled jobs, monitoring, shared limiter     |
-| S10 Data onboarding          | `team-capture`             | Contact and pipeline import, duplicate detection and merge, data quality      |
-| S11 Konnect Hub live + pilot | `team-integration`         | Staging pairing, contract tests, cutover runbook, pilot with the BD team      |
-| S12 Hardening and adoption   | `team-rte`, `team-copilot` | Security review, accessibility, performance, Copilot feedback, live mailboxes |
-| IP: PI-4 candidates          | —                          | E-signature and accounting connectors (needs PO approval)                     |
+| Sprint                       | Epic    | Stories          | Points | Team                       | Focus                                                                         |
+| ---------------------------- | ------- | ---------------- | ------ | -------------------------- | ----------------------------------------------------------------------------- |
+| S9 Production platform       | KCRM-62 | KCRM-67 … 74     | 27     | `team-platform`            | Hosting, Supabase prod, CI/CD, scheduled jobs, monitoring, shared limiter     |
+| S10 Data onboarding          | KCRM-63 | KCRM-75 … 78     | 18     | `team-capture`             | Contact and pipeline import, duplicate detection and merge, data quality      |
+| S11 Konnect Hub live + pilot | KCRM-64 | KCRM-79 … 82     | 16     | `team-integration`         | Staging pairing, contract tests, cutover runbook, pilot with the BD team      |
+| S12 Hardening and adoption   | KCRM-65 | KCRM-83 … 88     | 23     | `team-rte`, `team-copilot` | Security review, accessibility, performance, Copilot feedback, live mailboxes |
+| IP: PI-4 candidates          | KCRM-66 | KCRM-89, KCRM-90 | (16)   | —                          | E-signature and accounting connectors (needs PO approval, not committed)      |
+
+Committed: **84 points** across S9–S12, in line with PI-2's pace (64 points in 3 sprints). The first story,
+KCRM-67, is the hosting decision; the rest of S9 waits on it.
 
 ## Decisions the Product Owner owns (expensive to undo)
 
