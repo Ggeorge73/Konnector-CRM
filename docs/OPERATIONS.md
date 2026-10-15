@@ -90,11 +90,11 @@ and everything else Next.js catches via `src/instrumentation.ts` → `onRequestE
 All jobs require `Authorization: Bearer $CRON_SECRET` and accept **GET** (Vercel Cron) or **POST**. Without the
 secret they return 401. Each run logs `cron.<job>.completed`; a thrown error returns 500 and logs an error line.
 
-| Job                      | Schedule     | Does                                                                                   |
-| ------------------------ | ------------ | -------------------------------------------------------------------------------------- |
-| `/api/cron/integrations` | every 5 min  | Retries due Konnect Hub events, syncs handoff status, retries due outbound webhooks.   |
-| `/api/cron/mail-sync`    | every 15 min | Pulls new mail and meetings for every active mailbox connection.                       |
-| `/api/cron/daily`        | daily        | Client-item expiry and nudges, registration/vetting reminders, email digests (Resend). |
+| Job                      | Schedule                             | Does                                                                                   |
+| ------------------------ | ------------------------------------ | -------------------------------------------------------------------------------------- |
+| `/api/cron/integrations` | every 5 min (daily on Vercel Hobby)  | Retries due Konnect Hub events, syncs handoff status, retries due outbound webhooks.   |
+| `/api/cron/mail-sync`    | every 15 min (daily on Vercel Hobby) | Pulls new mail and meetings for every active mailbox connection.                       |
+| `/api/cron/daily`        | daily                                | Client-item expiry and nudges, registration/vetting reminders, email digests (Resend). |
 
 Run any job by hand:
 
