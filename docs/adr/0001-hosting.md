@@ -1,6 +1,6 @@
 # ADR 0001 — Hosting, database plan and production sign-in
 
-- **Status:** Accepted, 2026-10-14 (Jira KCRM-67).
+- **Status:** Accepted, 2026-10-14 (Jira KCRM-67). Amended 2026-10-15: start on the Free plans, upgrade before go-live.
 - **Date:** 2026-10-14
 - **Deciders:** Olugbenga George (PO / Business Owner)
 
@@ -60,11 +60,11 @@ What the app needs from a host:
 
 ## Database plan (Supabase)
 
-| Plan | Fit                                                                                                                  |
-| ---- | -------------------------------------------------------------------------------------------------------------------- |
-| Free | Not for production: projects pause when idle, and there are no backups                                               |
-| Pro  | **Recommended.** Daily backups, point-in-time recovery as an add-on, no pausing, enough for the team's volume        |
-| Team | Adds SSO to the Supabase dashboard and audit logs for the dashboard. Only worth it if the dashboard itself needs SSO |
+| Plan | Fit                                                                                                                           |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Free | Fine for staging and the BD pilot (test data). Not for go-live: no backups, pauses after ~a week idle, 500 MB DB / 1 GB files |
+| Pro  | **Recommended.** Daily backups, point-in-time recovery as an add-on, no pausing, enough for the team's volume                 |
+| Team | Adds SSO to the Supabase dashboard and audit logs for the dashboard. Only worth it if the dashboard itself needs SSO          |
 
 ## Production sign-in
 
@@ -87,9 +87,30 @@ What the app needs from a host:
 
 The PO accepted the recommendations on 2026-10-14:
 
-- **Hosting:** Vercel (Pro, for the 5-minute cron and team seats), US East region (`iad1`).
-- **Database:** Supabase Pro, with one project each for **staging** and **production**. Point-in-time recovery is turned on for production.
+- **Hosting:** Vercel, team `konnector-llc`, US East region (`iad1`).
+- **Database:** Supabase, one project each for **staging** and **production**.
 - **Sign-in:** Google plus magic link, limited to `konnectorllc.com`.
+
+### Amendment, 2026-10-15: start on the Free plans
+
+The PO chose to start on the free tiers and upgrade at go-live:
+
+| Stage                                                    | Supabase                                                             | Vercel                                                              |
+| -------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Staging + BD pilot (S9 – S11)                            | **Free** for both projects (2 free projects per org)                 | Team's current plan. On Hobby, crons run **once a day** (see below) |
+| **Go-live gate** (before real pipeline data is imported) | Upgrade **production** to **Pro** and turn on point-in-time recovery | **Pro**, for commercial use and the 5- and 15-minute crons          |
+
+What Free means until the gate:
+
+- **No backups.** Only test data and pilot data that can be re-imported go into either project. Real client
+  data waits for the upgrade.
+- **Pausing.** Supabase pauses idle Free projects. The 5-minute integrations cron keeps staging awake; if a
+  project does pause, resume it from the dashboard.
+- **Limits.** 500 MB database and 1 GB file storage per project, ample for the pilot.
+- **Vercel Hobby crons.** Hobby runs scheduled jobs at most once a day. Until the team is on Pro, the Konnect
+  Hub retry and mail-sync jobs run daily (or are triggered by hand). Nothing breaks; updates are just slower.
+
+The upgrade is a plan change in each dashboard. No migration or code change is needed.
 
 Setup steps: `docs/DEPLOY.md`.
 
