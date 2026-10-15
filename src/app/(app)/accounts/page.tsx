@@ -1,18 +1,20 @@
 import { AccountsView } from "@/components/accounts/AccountsView";
-import { isLeader } from "@/lib/auth/permissions";
+import { canManageDataQuality, isLeader } from "@/lib/auth/permissions";
 import { usersById, visibleAccounts, visibleOpportunities } from "@/lib/services/core";
 import { ctx } from "@/lib/services/context";
+import { accountDuplicates } from "@/lib/services/dedupe";
 import { savedViews } from "@/lib/services/views";
 
 export const metadata = { title: "Accounts" };
 
 export default async function AccountsPage() {
   const c = await ctx("/accounts");
-  const [accounts, opps, users, views] = await Promise.all([
+  const [accounts, opps, users, views, duplicates] = await Promise.all([
     visibleAccounts(c),
     visibleOpportunities(c),
     usersById(c),
     savedViews(c, "accounts"),
+    canManageDataQuality(c.user) ? accountDuplicates(c) : null,
   ]);
   const open = new Map<string, { value: number; count: number }>();
   for (const o of opps) {
@@ -35,6 +37,7 @@ export default async function AccountsPage() {
         .map((u) => ({ id: u.id, name: u.full_name }))}
       canBulk={isLeader(c.user)}
       canCreate={isLeader(c.user) || c.user.role === "bd"}
+      duplicates={duplicates?.length}
     />
   );
 }

@@ -2,7 +2,7 @@
  * Role rules, mirrored by Postgres RLS in supabase/migrations. Pure functions so
  * they are unit-tested directly (see src/lib/auth/permissions.test.ts).
  */
-import type { Account, ActiveUser, Opportunity, Quote, Role, User } from "@/lib/domain/types";
+import type { Account, ActiveUser, ImportBatch, ImportEntity, Opportunity, Quote, Role, User } from "@/lib/domain/types";
 
 /** Every rule below takes a user who has a role; pending users are stopped before them. */
 export type Who = { id: string; role: Role };
@@ -35,6 +35,8 @@ export const canRunHandoff = (u: Who) => isLeader(u) || u.role === "delivery_lea
 export const canSeeBench = (u: Who) => u.role !== "bd";
 export const canEditBench = (u: Who) => isLeader(u) || u.role === "recruiter";
 export const canManageRegistrations = (u: Who) => isLeader(u);
+/** Duplicates (detect, dismiss, merge) and the data quality view. Mirrored by merge_*() and duplicate_dismissals RLS. */
+export const canManageDataQuality = (u: Who) => isLeader(u);
 
 export function canSeeOpportunity(u: Who, o: Pick<Opportunity, "owner_id" | "shared_with" | "kind">) {
   if (isLeader(u) || u.role === "delivery_lead") return true;
@@ -60,6 +62,25 @@ export function canSeeAccount(u: Who, a: Pick<Account, "id" | "owner_id">, visib
 
 export const canEditAccount = (u: Who, a: Pick<Account, "owner_id">) => isLeader(u) || (u.role === "bd" && a.owner_id === u.id);
 
+/**
+ * CSV import (KCRM-75/76). Accounts and contacts: the account-import rule (bd, executive, admin).
+ * Pipeline: the create-opportunity rule (recruiters too, staffing deals only — checked per row).
+ */
+export function canImport(u: Who, entity: ImportEntity) {
+  if (isLeader(u) || u.role === "bd") return true;
+  return entity === "opportunities" && u.role === "recruiter";
+}
+
+/** How long an import can be undone. */
+export const IMPORT_UNDO_DAYS = 7;
+
+/** The importer or a leader, within IMPORT_UNDO_DAYS, while the batch is still committed. RLS mirrors this. */
+export function canUndoImport(u: Who, b: Pick<ImportBatch, "user_id" | "created_at" | "status">, now: Date) {
+  if (b.status !== "committed") return false;
+  if (!(isLeader(u) || b.user_id === u.id)) return false;
+  return now.getTime() - Date.parse(b.created_at) <= IMPORT_UNDO_DAYS * 86_400_000;
+}
+
 /** Nav sections each role can open; route guards use the same map. */
 export const ROUTE_ROLES: Record<string, Role[] | "all"> = {
   "/": "all",
@@ -78,10 +99,13 @@ export const ROUTE_ROLES: Record<string, Role[] | "all"> = {
   "/notifications": "all",
   "/settings": ["admin"],
   "/audit": ["admin"],
+  "/duplicates": ["admin", "executive"],
+  "/data-quality": ["admin", "executive"],
   "/developer": "all",
   "/integrations": ["admin", "executive", "delivery_lead"],
   "/connections": "all",
   "/copilot": "all",
+  "/import": ["admin", "executive", "bd"],
   "/_kit": "all",
 };
 

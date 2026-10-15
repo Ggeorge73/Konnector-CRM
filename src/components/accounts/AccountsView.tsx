@@ -1,6 +1,7 @@
 "use client";
 import Add from "@mui/icons-material/Add";
 import BookmarkAdd from "@mui/icons-material/BookmarkAddOutlined";
+import ContentCopy from "@mui/icons-material/ContentCopyOutlined";
 import Upload from "@mui/icons-material/UploadFileOutlined";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
@@ -15,7 +16,7 @@ import type { GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
-import { bulkAccountsAction, deleteViewAction, importAccountsAction, saveViewAction } from "@/app/actions/core";
+import { bulkAccountsAction, deleteViewAction, saveViewAction } from "@/app/actions/core";
 import { FormDialog } from "@/components/common/FormDialog";
 import { Select } from "@/components/common/fields";
 import { useAction } from "@/components/common/useAction";
@@ -38,12 +39,15 @@ export function AccountsView({
   owners,
   canBulk,
   canCreate,
+  duplicates,
 }: {
   rows: AccountRow[];
   views: Array<{ id: string; name: string; query: Record<string, string>; mine: boolean }>;
   owners: Array<{ id: string; name: string }>;
   canBulk: boolean;
   canCreate: boolean;
+  /** Likely duplicate pairs; only passed to leaders, who can open the Duplicates view. */
+  duplicates?: number;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -51,11 +55,9 @@ export function AccountsView({
   const query = Object.fromEntries(params.entries());
   const [selection, setSelection] = useState<GridRowSelectionModel>([]);
   const [creating, setCreating] = useState(params.get("new") === "1");
-  const [importing, setImporting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [viewName, setViewName] = useState("");
   const [shareView, setShareView] = useState(true);
-  const [csv, setCsv] = useState("");
   const [bulk, setBulk] = useState<{ owner_id?: string; tier?: Account["tier"] }>({});
 
   const filtered = useMemo(
@@ -82,8 +84,6 @@ export function AccountsView({
 
   const save = useAction(saveViewAction, { success: "View saved", onSuccess: () => setSaving(false) });
   const del = useAction(deleteViewAction, { success: "View deleted" });
-  const [importResult, setImportResult] = useState<{ created: number; errors: Array<{ row: number; message: string }> } | null>(null);
-  const imp = useAction(importAccountsAction, { onSuccess: (d) => setImportResult(d) });
   const bulkRun = useAction(bulkAccountsAction, { success: "Accounts updated", onSuccess: () => setSelection([]) });
 
   const columns: GridColDef<AccountRow>[] = [
@@ -128,9 +128,14 @@ export function AccountsView({
           </Typography>
           <Typography color="text.secondary">Every organisation Konnector deals with — agencies, companies, partners and OEMs.</Typography>
         </Box>
-        <Stack direction="row" spacing={2} alignItems="flex-start">
+        <Stack direction="row" spacing={2} alignItems="flex-start" useFlexGap flexWrap="wrap">
+          {duplicates !== undefined && (
+            <Button variant="outlined" startIcon={<ContentCopy />} component={Link} href="/duplicates?tab=accounts">
+              Duplicates ({duplicates})
+            </Button>
+          )}
           {canCreate && (
-            <Button variant="outlined" startIcon={<Upload />} onClick={() => setImporting(true)}>
+            <Button variant="outlined" startIcon={<Upload />} component={Link} href="/import?type=accounts">
               Import CSV
             </Button>
           )}
@@ -289,44 +294,6 @@ export function AccountsView({
           control={<Switch checked={shareView} onChange={(e) => setShareView(e.target.checked)} />}
           label="Share with the team"
         />
-      </FormDialog>
-
-      <FormDialog
-        open={importing}
-        title="Import accounts from CSV"
-        subtitle="Header row required: name, type, sector, country, state_region, city, website, tier, status"
-        onClose={() => setImporting(false)}
-        onSubmit={async () => {
-          const r = await imp.exec(csv);
-          if (r.ok && r.data.errors.length === 0) setImporting(false);
-        }}
-        submitLabel="Import"
-        pending={imp.pending}
-        maxWidth="md"
-      >
-        <Button component="label" variant="outlined" startIcon={<Upload />} sx={{ alignSelf: "flex-start" }}>
-          Choose file
-          <input hidden type="file" accept=".csv,text/csv" onChange={async (e) => setCsv((await e.target.files?.[0]?.text()) ?? "")} />
-        </Button>
-        <TextField
-          multiline
-          minRows={6}
-          label="…or paste CSV"
-          value={csv}
-          onChange={(e) => setCsv(e.target.value)}
-          slotProps={{ input: { sx: { fontFamily: "var(--font-mono)", fontSize: 12 } } }}
-        />
-        {imp.error && <Alert severity="error">{imp.error}</Alert>}
-        {importResult && (
-          <Alert severity={importResult.errors.length ? "warning" : "success"}>
-            Imported {importResult.created} account{importResult.created === 1 ? "" : "s"}.
-            {importResult.errors.map((e) => (
-              <div key={e.row}>
-                Row {e.row}: {e.message}
-              </div>
-            ))}
-          </Alert>
-        )}
       </FormDialog>
     </Stack>
   );

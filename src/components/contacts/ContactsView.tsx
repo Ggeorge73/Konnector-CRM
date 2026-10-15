@@ -1,5 +1,6 @@
 "use client";
 import Add from "@mui/icons-material/Add";
+import ContentCopy from "@mui/icons-material/ContentCopyOutlined";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
@@ -16,7 +17,16 @@ import { ContactFormDialog } from "./ContactFormDialog";
 
 type Row = Contact & { account_name: string; account_type: AccountType; owner_name: string };
 
-export function ContactsView({ rows, accounts }: { rows: Row[]; accounts: Array<{ id: string; name: string }> }) {
+export function ContactsView({
+  rows,
+  accounts,
+  duplicates,
+}: {
+  rows: Row[];
+  accounts: Array<{ id: string; name: string }>;
+  /** Likely duplicate pairs; only passed to leaders, who can open the Duplicates view. */
+  duplicates?: number;
+}) {
   const params = useSearchParams();
   const [creating, setCreating] = useState(params.get("new") === "1");
   const [role, setRole] = useState("");
@@ -64,9 +74,16 @@ export function ContactsView({ rows, accounts }: { rows: Row[]; accounts: Array<
           </Typography>
           <Typography color="text.secondary">Decision makers, procurement officers, evaluators and champions.</Typography>
         </Box>
-        <Button variant="contained" startIcon={<Add />} onClick={() => setCreating(true)} sx={{ alignSelf: "flex-start" }}>
-          New contact
-        </Button>
+        <Stack direction="row" spacing={2} alignItems="flex-start" useFlexGap flexWrap="wrap">
+          {duplicates !== undefined && (
+            <Button variant="outlined" startIcon={<ContentCopy />} component={Link} href="/duplicates?tab=contacts">
+              Duplicates ({duplicates})
+            </Button>
+          )}
+          <Button variant="contained" startIcon={<Add />} onClick={() => setCreating(true)}>
+            New contact
+          </Button>
+        </Stack>
       </Stack>
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "300px 300px" } }}>
         <Select

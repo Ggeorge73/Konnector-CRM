@@ -5,7 +5,6 @@ import {
   createAccount,
   createContact,
   createTask,
-  importAccountsCsv,
   logActivity,
   markRead,
   setTaskStatus,
@@ -27,9 +26,6 @@ export async function updateAccountAction(id: string, patch: Partial<AccountInpu
 }
 export async function bulkAccountsAction(ids: string[], patch: Parameters<typeof bulkUpdateAccounts>[2]) {
   return run((c) => bulkUpdateAccounts(c, ids, patch), ["/accounts"]);
-}
-export async function importAccountsAction(csv: string) {
-  return run((c) => importAccountsCsv(c, csv), ["/accounts"]);
 }
 export async function createContactAction(input: ContactInputT) {
   return run((c) => createContact(c, input), ["/contacts", `/accounts/${input.account_id}`]);
