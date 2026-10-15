@@ -6,6 +6,7 @@ import Campaign from "@mui/icons-material/CampaignOutlined";
 import Code from "@mui/icons-material/Code";
 import Contacts from "@mui/icons-material/ContactsOutlined";
 import Event from "@mui/icons-material/EventOutlined";
+import FactCheck from "@mui/icons-material/FactCheckOutlined";
 import History from "@mui/icons-material/History";
 import HubIcon from "@mui/icons-material/Hub";
 import Insights from "@mui/icons-material/Insights";
@@ -16,6 +17,7 @@ import Public from "@mui/icons-material/Public";
 import RequestQuote from "@mui/icons-material/RequestQuoteOutlined";
 import Settings from "@mui/icons-material/SettingsOutlined";
 import TaskAlt from "@mui/icons-material/TaskAlt";
+import UploadFile from "@mui/icons-material/UploadFileOutlined";
 import Verified from "@mui/icons-material/VerifiedOutlined";
 import ViewKanban from "@mui/icons-material/ViewKanbanOutlined";
 
@@ -39,4 +41,6 @@ export const NAV_ICONS: Record<string, React.ReactNode> = {
   code: <Code fontSize="small" />,
   mail: <Mail fontSize="small" />,
   auto_awesome: <AutoAwesome fontSize="small" />,
+  upload: <UploadFile fontSize="small" />,
+  fact_check: <FactCheck fontSize="small" />,
 };

@@ -18,6 +18,7 @@ export function FormDialog({
   children,
   maxWidth = "sm",
   danger,
+  submitDisabled,
 }: {
   open: boolean;
   title: string;
@@ -29,6 +30,8 @@ export function FormDialog({
   children: React.ReactNode;
   maxWidth?: "xs" | "sm" | "md" | "lg";
   danger?: boolean;
+  /** Keep the submit button disabled (e.g. the action is not allowed in the current state). */
+  submitDisabled?: boolean;
 }) {
   return (
     <Dialog open={open} onClose={pending ? undefined : onClose} fullWidth maxWidth={maxWidth} aria-labelledby="form-dialog-title">
@@ -56,7 +59,7 @@ export function FormDialog({
           <Button onClick={onClose} disabled={pending}>
             Cancel
           </Button>
-          <Button type="submit" variant="contained" color={danger ? "error" : "primary"} disabled={pending}>
+          <Button type="submit" variant="contained" color={danger ? "error" : "primary"} disabled={pending || submitDisabled}>
             {pending ? "Saving…" : submitLabel}
           </Button>
         </DialogActions>

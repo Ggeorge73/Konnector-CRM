@@ -194,3 +194,69 @@ Notes / inspect & adapt:
 - No error-tracking vendor yet (PO decision); `ERROR_WEBHOOK_URL` is the hook for one.
 - Styles keep `'unsafe-inline'` (emotion + React style attributes); scripts are nonce-only.
 - `KONNECTOR_INTEGRATION_SECRET` rotation needs a short coordinated window; accepting a previous secret is a follow-up.
+
+## PI-3 Sprint 10 — Contact and pipeline import (KCRM-75, S10-01 / KCRM-76, S10-02)
+
+Delivered:
+
+- One import framework for accounts, contacts and pipeline (`src/lib/import` parser + mapping, `src/lib/services/imports.ts`):
+  parse → map → dry run (per-row create / skip / error with reasons, nothing written) → commit → undo. Dry run and
+  commit share `planImport()`, so the preview is exactly what gets written. The old account import now runs on it.
+- CSV parser (no new dependency): quotes, `""`, commas and newlines inside quotes, BOM, CRLF/CR; 5,000 rows / 5 MB.
+- Auto-suggested column mapping the user can adjust; downloadable templates per type.
+- Contacts: matched to visible accounts by normalized name, then account domain/website, then email domain (webmail
+  ignored); unmatched rows flagged, optional "create missing accounts" owned by the importer; duplicates skipped by
+  email (case-insensitive) against existing contacts and within the file.
+- Pipeline: free-text stages mapped through an adjustable stage table ("Proposal Sent" → Submitted); unknown owners
+  flagged and given a fallback owner (default the importer; only leaders can pick someone else, bd imports are always
+  owned by the importer, as RLS requires); stage history (`2026-03-01 Qualify; 2026-05-10 Proposal`) becomes past-dated
+  timeline entries, otherwise one "Imported at stage X" entry; no stage-gate checks for imported history, but lost /
+  no-bid deals always carry a reason ("Imported" when blank). Cost / margin / score / quote columns are never mapped
+  and are warned about.
+- Commit: one multi-row insert per table (`Store.insertMany`), an `import_batches` row with the created ids, one
+  `import.committed` audit entry. Undo archives exactly those records (refused if any was edited since or has new
+  dependants), importer or a leader within 7 days, audited as `import.undone`.
+- `/import` page (stepper: upload → map → dry run → import → done) with recent batches and Undo. Accounts' "Import CSV"
+  now links to it. Access as the account import (bd, executive, admin).
+- Tests: `imports.test.ts`, RLS checks for `import_batches`, `e2e/import.spec.ts`.
+
+Notes / inspect & adapt:
+
+- Accounts created by an import default to type Private, sector Unclassified, country US, tier C, prospect.
+- The service lets recruiters import staffing deals (same as `createOpportunity`), but `opportunities_insert` RLS
+  doesn't allow recruiters, and `/import` is bd/leaders only, so in practice recruiters can't import yet.
+- Undo with Supabase reads whole tables to find dependants; fine at CRM scale, revisit if tables grow large.
+
+## PI-3 Sprint 10 — Duplicate detection and merge (KCRM-77, S10-03) and data quality view (KCRM-78, S10-04)
+
+Delivered:
+
+- Detection (`src/lib/domain/dedupe.ts` rules, `src/lib/services/dedupe.ts` service). Accounts: same name once legal
+  suffixes (LLC, Inc, Corp, Ltd…), "the", punctuation, case and diacritics are ignored; same website domain; or names with
+  trigram (pg_trgm-style) Jaccard similarity >= 0.6. Contacts: same email (case-insensitive; dots and +tags dropped for
+  Gmail/Googlemail only), same normalised name at the same account, same phone digits (leading US "1" dropped). Signals
+  combine as `100 × (1 − Π(1 − weight))`; every pair lists its reasons. Blocking keys and an inverted trigram index avoid
+  comparing every pair. Archived records and dismissed pairs are excluded.
+- `duplicate_dismissals` table ("Not a duplicate", with restore) and `merge_accounts()` / `merge_contacts()` SQL functions
+  (one transaction, leaders only, Hub-id conflict refused); `Store.merge()` with the MemoryStore mirror in `src/lib/data/merge.ts`.
+  The survivor keeps its id; the loser is archived with a timeline entry on the survivor and an `account.merged` /
+  `contact.merged` audit row (before/after, loser id and snapshot).
+- Re-pointed on account merge: contacts, opportunities, quotes, quote_lines (OEM partner), partner_vetting, project_health,
+  client_items, synced_messages, activities (account_id + related), tasks (account_id + related), files, copilot_runs,
+  record_tags, recent_views, notification links. On contact merge: activities, tasks, files, copilot_runs, synced_messages,
+  event_leads (same-event leads folded together), record_tags, recent_views, notification links.
+- `/duplicates` (Accounts / Contacts tabs, score + reasons, side-by-side field picker) linked from Accounts and Contacts for
+  leaders; `/data-quality` in the Admin nav (leaders) with tiles and tabbed tables: accounts without an active owner, open
+  deals past expected close, open deals missing value or close date, contacts without email, stale deals
+  (`STALE_DEAL_DAYS = 30`), and the duplicates count.
+- Seed: "Harborline Logistics, Inc." (Priya, from an expo) duplicates Marcus's "Harborline Logistics", with Samuel Porter
+  (same mailbox and phone as Sam Porter), Dana Whitaker (no email) and the "Yard Telematics Pilot" deal (past its close date).
+- Tests: `dedupe.test.ts`, `data-quality.test.ts`, permissions; RLS test covers dismissals and both merge functions;
+  `e2e/data-quality.spec.ts`.
+
+Notes / inspect & adapt:
+
+- Merged accounts emit `account.updated` webhooks; Konnect Hub is not told about merges (its client id moves to the survivor).
+- The loser's `konnect_hub_client_id` is cleared on archive so Hub lookups resolve to one account; the audit snapshot keeps it.
+- Detection runs in the app over all active accounts/contacts (fine for thousands of rows); move it to `pg_trgm` in SQL if
+  the book grows much larger.

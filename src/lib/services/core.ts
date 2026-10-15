@@ -151,67 +151,7 @@ export async function bulkUpdateAccounts(
   return { updated };
 }
 
-export const ACCOUNT_CSV_COLUMNS = ["name", "type", "sector", "country", "state_region", "city", "website", "tier", "status"] as const;
-
-/** Parse a CSV string (header row required). Handles quoted fields and commas inside quotes. */
-export function parseCsv(text: string): Record<string, string>[] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let q = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (q) {
-      if (ch === '"' && text[i + 1] === '"') {
-        field += '"';
-        i++;
-      } else if (ch === '"') q = false;
-      else field += ch;
-    } else if (ch === '"') q = true;
-    else if (ch === ",") {
-      row.push(field);
-      field = "";
-    } else if (ch === "\n" || ch === "\r") {
-      if (ch === "\r" && text[i + 1] === "\n") i++;
-      row.push(field);
-      field = "";
-      if (row.some((f) => f.trim() !== "")) rows.push(row);
-      row = [];
-    } else field += ch;
-  }
-  row.push(field);
-  if (row.some((f) => f.trim() !== "")) rows.push(row);
-  const [header, ...body] = rows;
-  if (!header) return [];
-  const keys = header.map((h) => h.trim().toLowerCase());
-  return body.map((r) => Object.fromEntries(keys.map((k, i) => [k, (r[i] ?? "").trim()])));
-}
-
-export async function importAccountsCsv(c: Ctx, csv: string) {
-  const rows = parseCsv(csv);
-  const errors: Array<{ row: number; message: string }> = [];
-  let created = 0;
-  for (const [i, r] of rows.entries()) {
-    const parsed = AccountInput.safeParse({
-      name: r.name,
-      type: r.type,
-      sector: r.sector,
-      country: r.country,
-      state_region: r.state_region ?? "",
-      city: r.city ?? "",
-      website: r.website ?? "",
-      tier: r.tier || "C",
-      status: r.status || "prospect",
-    });
-    if (!parsed.success) {
-      errors.push({ row: i + 2, message: parsed.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; ") });
-      continue;
-    }
-    await createAccount(c, parsed.data as AccountInputT);
-    created++;
-  }
-  return { created, errors };
-}
+// CSV import lives in ./imports (shared framework for accounts, contacts and pipeline).
 
 // ---------------- Contacts ----------------
 

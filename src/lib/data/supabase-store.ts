@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { NewRow, Row, TableName } from "@/lib/domain/types";
-import type { ListOptions, Store } from "./store";
+import { ForbiddenError, ValidationError } from "@/lib/auth/errors";
+import type { DedupeEntity, NewRow, Row, TableName } from "@/lib/domain/types";
+import type { ListOptions, MergeArgs, MergeResult, Store } from "./store";
 
 /**
  * Supabase-backed store. Runs with the signed-in user's JWT so Postgres RLS
@@ -80,6 +81,18 @@ export class SupabaseStore implements Store {
     ) as Row<T>;
   }
 
+  async insertMany<T extends TableName>(table: T, rows: NewRow<T>[]): Promise<Row<T>[]> {
+    if (rows.length === 0) return [];
+    if (table === "quote_lines") return Promise.all(rows.map((r) => this.insert(table, r)));
+    // One INSERT … VALUES statement: the rows land together or not at all.
+    const { data, error } = await this.client
+      .from(table)
+      .insert(rows as never)
+      .select("*");
+    if (error) throw new Error(`${table}: ${error.message}`);
+    return (data ?? []) as Row<T>[];
+  }
+
   async update<T extends TableName>(table: T, id: string, patch: Partial<Row<T>>): Promise<Row<T>> {
     const { data, error } = await this.client
       .from(table)
@@ -94,5 +107,17 @@ export class SupabaseStore implements Store {
   async remove<T extends TableName>(table: T, id: string): Promise<void> {
     const { error } = await this.client.from(table).delete().eq("id", id);
     if (error) throw new Error(`${table}: ${error.message}`);
+  }
+
+  /** One transaction in Postgres: merge_accounts() / merge_contacts() check is_leader() themselves. */
+  async merge<E extends DedupeEntity>(entity: E, args: MergeArgs): Promise<MergeResult<E>> {
+    const fn = entity === "accounts" ? "merge_accounts" : "merge_contacts";
+    const { data, error } = await this.client.rpc(fn, { p_survivor: args.survivorId, p_loser: args.loserId, p_patch: args.patch });
+    if (error) {
+      if (error.code === "42501") throw new ForbiddenError(error.message);
+      if (error.code === "23514" || error.code === "22023") throw new ValidationError(error.message.replace(/^hub_conflict: /, ""));
+      throw new Error(`${fn}: ${error.message}`);
+    }
+    return data as MergeResult<E>;
   }
 }

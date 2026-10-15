@@ -23,9 +23,11 @@ export const NAV: NavItem[] = [
   { href: "/events", label: "BD events", icon: "campaign", section: "Readiness" },
   { href: "/registrations", label: "Registrations", icon: "verified", section: "Readiness" },
   { href: "/vetting", label: "Partner vetting", icon: "policy", section: "Readiness" },
+  { href: "/import", label: "Import", icon: "upload", section: "Admin" },
   { href: "/settings", label: "Settings", icon: "settings", section: "Admin" },
   { href: "/integrations", label: "Integrations", icon: "hub", section: "Admin" },
   { href: "/connections", label: "Email & calendar", icon: "mail", section: "Admin" },
+  { href: "/data-quality", label: "Data quality", icon: "fact_check", section: "Admin" },
   { href: "/audit", label: "Audit log", icon: "history", section: "Admin" },
   { href: "/developer", label: "API & webhooks", icon: "code", section: "Admin" },
 ];
@@ -51,6 +53,9 @@ export const SHIPPED = new Set([
   "/developer",
   "/connections",
   "/copilot",
+  "/import",
+  "/duplicates",
+  "/data-quality",
 ]);
 
 export function navFor(role: Role) {

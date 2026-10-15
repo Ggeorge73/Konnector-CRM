@@ -6,9 +6,7 @@ import {
   createAccount,
   createTask,
   getAccount,
-  importAccountsCsv,
   logActivity,
-  parseCsv,
   search,
   setTaskStatus,
   timelineFor,
@@ -17,6 +15,8 @@ import {
   visibleAccounts,
   visibleOpportunities,
 } from "@/lib/services/core";
+import { parseCsvTable } from "@/lib/import/csv";
+import { importAccountsCsv } from "@/lib/services/imports";
 import { asUser, switchUser } from "./helpers";
 
 const ids = seedIds();
@@ -88,7 +88,7 @@ describe("accounts", () => {
   });
 
   it("imports CSV with per-row errors", async () => {
-    expect(parseCsv('name,city\n"Acme, Inc",Atlanta\r\n')).toEqual([{ name: "Acme, Inc", city: "Atlanta" }]);
+    expect(parseCsvTable('name,city\n"Acme, Inc",Atlanta\r\n').rows).toEqual([{ name: "Acme, Inc", city: "Atlanta" }]);
     const bd = await asUser("bd2");
     const r = await importAccountsCsv(
       bd,

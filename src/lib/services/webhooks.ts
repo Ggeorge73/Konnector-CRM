@@ -254,6 +254,18 @@ async function deliverTo(
   return attempt(store, sub, row, now, transport);
 }
 
+/** Events that have at least one active subscriber — lets bulk writers (CSV import) skip emitEvent entirely. */
+export async function subscribedEvents(c: Ctx): Promise<Set<WebhookEvent>> {
+  try {
+    const store = await privilegedStore(c);
+    const subs = (await store.list("webhook_subscriptions", { where: { active: true } })).filter((s) => s.org_id === c.user.org_id);
+    return new Set(subs.flatMap((s) => s.events));
+  } catch (e) {
+    reportError(e, { source: "webhooks.emit", userId: c.user.id });
+    return new Set();
+  }
+}
+
 /**
  * Records and delivers `event` to every active subscription for it. Never throws: errors are
  * logged and recorded on the delivery row. Refuses payloads that carry cost-side fields.

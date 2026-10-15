@@ -411,6 +411,30 @@ export function buildSeed(now: Date = new Date()): Dataset {
       ...a,
     });
   }
+  // A realistic duplicate (KCRM-77): Priya created Harborline again from an expo badge scan,
+  // with the legal suffix and a website, unaware Marcus already had the account.
+  acc["harbor-dup"] = sid("acct:harbor-dup");
+  d.accounts.push({
+    ...base("acct:harbor-dup", -20),
+    created_by: U.bd2,
+    org_id: ORG_ID,
+    name: "Harborline Logistics, Inc.",
+    type: "private",
+    sector: "Logistics & supply chain",
+    country: "US",
+    state_region: "GA",
+    city: "Savannah",
+    lat: 32.0809,
+    lng: -81.0912,
+    website: "https://www.harborline.example.com",
+    logo_url: null,
+    owner_id: U.bd2,
+    tier: "C",
+    status: "prospect",
+    konnect_hub_client_id: null,
+    survey_score: null,
+    description: "Met at the Port Logistics Expo; interested in yard telematics.",
+  });
 
   // ---------------- Contacts ----------------
   const contacts: Array<[string, string, string, string, string, Contact["role_in_buying"]]> = [
@@ -451,6 +475,35 @@ export function buildSeed(now: Date = new Date()): Dataset {
       owner_id: d.accounts.find((x) => x.id === acc[a])!.owner_id,
     });
   }
+  // Contacts on the duplicate account: Sam Porter again (same mailbox, same phone) and a new face
+  // captured from a badge scan without an email (a data quality gap).
+  const dupContact = (
+    key: string,
+    first: string,
+    last: string,
+    title: string,
+    email: string | null,
+    phone: string,
+    role: Contact["role_in_buying"],
+  ) => {
+    ct[`${first} ${last}`] = sid(key);
+    d.contacts.push({
+      ...base(key, -20),
+      created_by: U.bd2,
+      org_id: ORG_ID,
+      account_id: acc["harbor-dup"],
+      first_name: first,
+      last_name: last,
+      title,
+      email,
+      phone,
+      role_in_buying: role,
+      owner_id: U.bd2,
+    });
+  };
+  const samPhone = d.contacts.find((x) => x.id === ct["Sam Porter"])!.phone!.replace(/^\+1 (\d{3}) (\d{3}) (\d{4})$/, "($1) $2-$3");
+  dupContact("contact:samuel.porter", "Samuel", "Porter", "Director of IT", "Sam.Porter@harbor.example.com", samPhone, "influencer");
+  dupContact("contact:dana.whitaker", "Dana", "Whitaker", "Yard Operations Manager", null, "+1 912 555 0148", "champion");
 
   // ---------------- Opportunities ----------------
   const stageProb = Object.fromEntries(DEFAULT_SETTINGS.stages.map((s) => [s.key, s.probability])) as Record<Stage, number>;
@@ -813,6 +866,22 @@ export function buildSeed(now: Date = new Date()): Dataset {
         expected_close: date(30),
         next_step: "Client decision in Konnect Hub",
         next_step_due: date(12),
+      },
+    ],
+    [
+      "harbor-yard",
+      "harbor-dup",
+      {
+        name: "Yard Telematics Pilot",
+        kind: "private_deal",
+        stage: "qualify",
+        value: 185_000,
+        owner_id: U.bd2,
+        source: "event",
+        service_lines: ["systems_integration"],
+        expected_close: date(-6), // slipped: nobody updated it after the expo (a data quality gap)
+        next_step: "Site visit at the Garden City yard",
+        next_step_due: date(9),
       },
     ],
   ];
@@ -1524,6 +1593,18 @@ export function buildSeed(now: Date = new Date()): Dataset {
     "quote:mag-fw",
     sid("quote:mag-fw"),
     "magnolia",
+    U.bd2,
+  );
+
+  act(
+    "call",
+    "Expo follow-up with Dana Whitaker",
+    "Yard team tracks 600 chassis on spreadsheets; wants a 90-day telematics pilot.",
+    -12,
+    "account",
+    "harbor-dup",
+    acc["harbor-dup"],
+    "harbor-dup",
     U.bd2,
   );
 

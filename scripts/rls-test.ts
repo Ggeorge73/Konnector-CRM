@@ -212,6 +212,11 @@ class Session {
     }
   }
 
+  /** Runs several statements as this user in one transaction (always rolled back). */
+  async inTx<T>(fn: (q: (sql: string, params?: unknown[]) => Promise<Record<string, unknown>[]>) => Promise<T>): Promise<T> {
+    return this.tx(() => fn(async (sql, params = []) => (await this.client.query(sql, params)).rows as Record<string, unknown>[]));
+  }
+
   async expectRowCount(name: string, sql: string, params: unknown[], expected: number) {
     const r = await this.exec(sql, params);
     if ("error" in r) record(false, `${this.label}: ${name}`, r.error.message);
@@ -319,12 +324,22 @@ async function main() {
         .filter(([t, cols]) => !sameSet(colMap.get(t) ?? [], [...BASE_COLS, ...cols]))
         .map(([t]) => t);
       record(pi2Drift.length === 0, "PI-2 tables have exactly the columns in types.ts", pi2Drift.join(", "));
+      record(
+        sameSet(colMap.get("import_batches") ?? [], [...BASE_COLS, ...IMPORT_BATCH_COLUMNS]),
+        "import_batches has exactly the columns in types.ts (ImportBatch)",
+        (colMap.get("import_batches") ?? []).join(","),
+      );
     }
     await client.query(
       PI2_FIXTURES.replaceAll("$1", `'${data.organizations[0].id}'`)
         .replaceAll("$2", `'${SEED_USERS.bd1}'`)
         .replaceAll("$3", `'${SEED_USERS.bd2}'`)
         .replaceAll("$4", `'${SEED_USERS.admin}'`),
+    );
+    await client.query(
+      IMPORT_FIXTURES.replaceAll("$1", `'${data.organizations[0].id}'`)
+        .replaceAll("$2", `'${SEED_USERS.bd1}'`)
+        .replaceAll("$3", `'${SEED_USERS.bd2}'`),
     );
     // KCRM-69: someone who signed in from the domain but has no role yet (as the auth callback creates them).
     await client.query(
@@ -404,6 +419,7 @@ async function main() {
       );
       await s.expectError("select quote_lines.unit_cost directly → permission denied", "select unit_cost from quote_lines");
       await pi2Checks(s, u);
+      await importChecks(s, u);
       await s.expectError("update audit_log", "update audit_log set action = 'x'");
       await s.expectError("delete audit_log", "delete from audit_log");
     }
@@ -540,6 +556,7 @@ async function main() {
 
     await pendingChecks(client);
     await rateLimitChecks(client, sessions);
+    await dedupeChecks(client, sessions, colMap);
 
     console.log("\nanon");
     const anon = new Session(client, "anon", null, "anon");
@@ -791,6 +808,67 @@ async function pi2Checks(s: Session, u: Who) {
 }
 
 // ---------------------------------------------------------------------------
+// KCRM-75/76: import batches — read own (leaders: all), undo own (leaders: any) within 7 days
+// ---------------------------------------------------------------------------
+
+const IMPORT_BATCH_COLUMNS = [
+  "org_id",
+  "user_id",
+  "entity",
+  "file_name",
+  "status",
+  "total_rows",
+  "created_count",
+  "skipped_count",
+  "error_count",
+  "created_ids",
+  "undone_at",
+  "undone_by",
+];
+
+const IB = {
+  bd1: "a7500000-0000-4000-8000-000000000001",
+  bd2: "a7500000-0000-4000-8000-000000000002",
+  bd1Old: "a7500000-0000-4000-8000-000000000003",
+};
+
+const IMPORT_FIXTURES = `
+insert into import_batches (id, org_id, user_id, entity, file_name, total_rows, created_count, created_at) values
+  ('${IB.bd1}', $1, $2, 'contacts', 'contacts.csv', 3, 2, now() - interval '1 day'),
+  ('${IB.bd2}', $1, $3, 'opportunities', 'pipeline.csv', 5, 5, now() - interval '2 days'),
+  ('${IB.bd1Old}', $1, $2, 'contacts', 'old.csv', 1, 1, now() - interval '8 days');
+`;
+
+/** Per-role import_batches assertions (KCRM-75/76), mirroring canImport / canUndoImport. */
+async function importChecks(s: Session, u: Who) {
+  const leader = u.role === "admin" || u.role === "executive";
+  const org = data.organizations[0].id;
+  const other = u.id === SEED_USERS.bd1 ? SEED_USERS.bd2 : SEED_USERS.bd1;
+  const own = u.id === SEED_USERS.bd1 ? [IB.bd1, IB.bd1Old] : u.id === SEED_USERS.bd2 ? [IB.bd2] : [];
+  await s.expectIds("import_batches = own (leaders: all)", "select id from import_batches", leader ? Object.values(IB) : own);
+
+  const insert = (entity: string) =>
+    `insert into import_batches (org_id, user_id, entity, file_name) values ($1, $2, '${entity}', 'x.csv')`;
+  const canContacts = leader || u.role === "bd";
+  const canPipeline = canContacts || u.role === "recruiter";
+  if (canContacts) await s.expectRowCount("import_batches: record a contacts import as self", insert("contacts"), [org, u.id], 1);
+  else await s.expectError("import_batches: contacts import (bd/leaders only)", insert("contacts"), [org, u.id]);
+  if (canPipeline) await s.expectRowCount("import_batches: record a pipeline import as self", insert("opportunities"), [org, u.id], 1);
+  else await s.expectError("import_batches: pipeline import (bd/leaders/recruiters only)", insert("opportunities"), [org, u.id]);
+  await s.expectError("import_batches: record an import as someone else", insert("contacts"), [org, other]);
+
+  const undo = "update import_batches set status = 'undone', undone_at = now(), undone_by = $2 where id = $1";
+  const ownRecent = u.id === SEED_USERS.bd1 ? IB.bd1 : u.id === SEED_USERS.bd2 ? IB.bd2 : null;
+  if (ownRecent) await s.expectRowCount("import_batches: undo own recent import", undo, [ownRecent, u.id], 1);
+  const othersRecent = u.id === SEED_USERS.bd1 ? IB.bd2 : IB.bd1;
+  await s.expectRowCount("import_batches: undo someone else's import (leaders only)", undo, [othersRecent, u.id], leader ? 1 : 0);
+  await s.expectRowCount("import_batches: undo after 7 days → refused", undo, [IB.bd1Old, u.id], 0);
+  if (ownRecent || leader) await s.expectError("import_batches: undo recorded as someone else", undo, [ownRecent ?? IB.bd1, other]);
+  await s.expectError("import_batches: cannot rewrite created_ids", "update import_batches set created_ids = '{}'::jsonb");
+  await s.expectError("import_batches: no delete", "delete from import_batches");
+}
+
+// ---------------------------------------------------------------------------
 // KCRM-69: pending access (role null) — nothing visible, nothing writable
 // ---------------------------------------------------------------------------
 
@@ -897,6 +975,165 @@ async function rateLimitChecks(client: Client, sessions: Record<string, Session>
     record(false, "service_role: take_rate_limit", (e as PgError).message);
   } finally {
     await client.query("rollback");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// KCRM-77: duplicate_dismissals + merge_accounts() / merge_contacts() — leaders only
+// ---------------------------------------------------------------------------
+
+const DISMISSAL = "a7700000-0000-4000-8000-000000000001";
+
+async function dedupeChecks(client: Client, sessions: Record<string, Session>, colMap: Map<string, string[]>) {
+  console.log("\nduplicates — dismissals and merge functions (leaders only)");
+  const org = data.organizations[0].id;
+  const acct = (name: string) => data.accounts.find((a) => a.name === name)!.id;
+  const contact = (first: string, last: string) => data.contacts.find((x) => x.first_name === first && x.last_name === last)!.id;
+  const harbor = acct("Harborline Logistics");
+  const harborDup = acct("Harborline Logistics, Inc.");
+  const sam = contact("Sam", "Porter");
+  const samuel = contact("Samuel", "Porter");
+  const [pa, pb] = [acct("Georgia Technology Authority"), acct("Georgia Department of Revenue")].sort();
+
+  record(
+    sameSet(colMap.get("duplicate_dismissals") ?? [], [...BASE_COLS, "org_id", "entity", "record_a", "record_b", "dismissed_by", "note"]),
+    "duplicate_dismissals has exactly the columns in types.ts",
+  );
+  await client.query(
+    `insert into duplicate_dismissals (id, org_id, entity, record_a, record_b, dismissed_by) values ($1, $2, 'accounts', $3, $4, $5)`,
+    [DISMISSAL, org, pa, pb, SEED_USERS.exec],
+  );
+
+  const insertDismissal =
+    "insert into duplicate_dismissals (org_id, entity, record_a, record_b, dismissed_by) values ($1, 'contacts', $2, $3, $4)";
+  const [ca, cb] = [sam, samuel].sort();
+  for (const [key, s] of Object.entries(sessions)) {
+    const u = who(SEED_USERS[key as keyof typeof SEED_USERS]);
+    const leader = u.role === "admin" || u.role === "executive";
+    const other = u.id === SEED_USERS.admin ? SEED_USERS.exec : SEED_USERS.admin;
+    await s.expectIds("duplicate_dismissals readable = leaders", "select id from duplicate_dismissals", leader ? [DISMISSAL] : []);
+    if (leader) {
+      await s.expectRowCount("duplicate_dismissals: insert as self", insertDismissal, [org, ca, cb, u.id], 1);
+      await s.expectError("duplicate_dismissals: insert as someone else", insertDismissal, [org, ca, cb, other]);
+      await s.expectRowCount("duplicate_dismissals: delete (restore a pair)", "delete from duplicate_dismissals", [], 1);
+      await s.expectError(
+        "duplicate_dismissals: pair must be in canonical order",
+        insertDismissal.replace("$2, $3", "$3, $2"),
+        [org, ca, cb, u.id],
+        "23514",
+      );
+    } else {
+      await s.expectError("duplicate_dismissals: insert", insertDismissal, [org, ca, cb, u.id]);
+      await s.expectRowCount("duplicate_dismissals: delete", "delete from duplicate_dismissals", [], 0);
+    }
+    await s.expectError("duplicate_dismissals: no update for anyone", "update duplicate_dismissals set note = 'x'");
+
+    if (!leader) {
+      await s.expectError("merge_accounts(): refused", "select public.merge_accounts($1, $2, '{}'::jsonb)", [harbor, harborDup]);
+      await s.expectError("merge_contacts(): refused", "select public.merge_contacts($1, $2, '{}'::jsonb)", [sam, samuel]);
+    }
+  }
+  // Priya owns the duplicate account and can edit it, but still may not merge.
+  await sessions.bd2.expectError("bd (Priya) owns the duplicate yet merge_accounts() is refused", "select public.merge_accounts($1, $2)", [
+    harborDup,
+    harbor,
+  ]);
+  await new Session(client, "pending (New Starter)", PENDING_USER).expectIds(
+    "duplicate_dismissals: 0 rows",
+    "select id from duplicate_dismissals",
+    [],
+  );
+  for (const s of [new Session(client, "pending (New Starter)", PENDING_USER), new Session(client, "anon", null, "anon")]) {
+    await s.expectError("merge_accounts(): refused", "select public.merge_accounts($1, $2, '{}'::jsonb)", [harbor, harborDup]);
+    await s.expectError("merge_contacts(): refused", "select public.merge_contacts($1, $2, '{}'::jsonb)", [sam, samuel]);
+  }
+  const anon = new Session(client, "anon", null, "anon");
+  await anon.expectError("duplicate_dismissals: select", "select id from duplicate_dismissals");
+
+  // Leaders: one transaction re-points everything, archives the loser, writes timeline + audit.
+  for (const s of [sessions.admin, sessions.exec]) {
+    try {
+      const out = await s.inTx(async (q) => {
+        const [{ r }] = await q("select public.merge_accounts($1, $2, $3::jsonb) as r", [
+          harbor,
+          harborDup,
+          JSON.stringify({ website: "https://www.harborline.example.com", org_id: "ignored" }),
+        ]);
+        const [left] = await q(
+          `select
+             (select count(*)::int from contacts where account_id = $1) as contacts,
+             (select count(*)::int from opportunities where account_id = $1) as opps,
+             (select count(*)::int from activities where account_id = $1 or (related_type = 'account' and related_id = $1)) as acts,
+             (select archived_at is not null from accounts where id = $1) as archived,
+             (select website from accounts where id = $2) as website,
+             (select count(*)::int from activities where related_id = $2 and subject like 'Merged "Harborline Logistics, Inc."%') as timeline`,
+          [harborDup, harbor],
+        );
+        return { r: r as { repointed: Record<string, number> }, left };
+      });
+      record(
+        out.left.contacts === 0 &&
+          out.left.opps === 0 &&
+          out.left.acts === 0 &&
+          out.left.archived === true &&
+          out.left.website === "https://www.harborline.example.com" &&
+          out.left.timeline === 1 &&
+          out.r.repointed.contacts === 2 &&
+          out.r.repointed.opportunities === 1,
+        `${s.label}: merge_accounts() re-points, archives the loser and logs the timeline`,
+        JSON.stringify(out),
+      );
+    } catch (e) {
+      record(false, `${s.label}: merge_accounts()`, (e as PgError).message);
+    }
+  }
+  try {
+    const audit = await sessions.admin.inTx(async (q) => {
+      await q("select public.merge_accounts($1, $2)", [harbor, harborDup]);
+      return q(
+        "select actor_id, after ->> 'loser_id' as loser, after -> 'loser_snapshot' ->> 'name' as name from audit_log where action = 'account.merged'",
+      );
+    });
+    record(
+      audit.length === 1 &&
+        audit[0].actor_id === SEED_USERS.admin &&
+        audit[0].loser === harborDup &&
+        audit[0].name === "Harborline Logistics, Inc.",
+      "admin: merge_accounts() audits actor, loser id and loser snapshot",
+      JSON.stringify(audit),
+    );
+  } catch (e) {
+    record(false, "admin: merge_accounts() audit", (e as PgError).message);
+  }
+  {
+    const r = await sessions.exec.inTx(async (q) => {
+      await q("update accounts set konnect_hub_client_id = 'khc_a' where id = $1", [harbor]);
+      await q("update accounts set konnect_hub_client_id = 'khc_b' where id = $1", [harborDup]);
+      try {
+        await q("select public.merge_accounts($1, $2)", [harbor, harborDup]);
+        return "merged";
+      } catch (e) {
+        return (e as PgError).code;
+      }
+    });
+    record(r === "23514", "executive: merge_accounts() refuses different Konnect Hub client ids", String(r));
+  }
+  try {
+    const r = await sessions.exec.inTx(async (q) => {
+      const [{ r }] = await q('select public.merge_contacts($1, $2, \'{"title":"Director of IT"}\'::jsonb) as r', [sam, samuel]);
+      const [x] = await q(
+        "select (select archived_at is not null from contacts where id = $1) as archived, (select title from contacts where id = $2) as title",
+        [samuel, sam],
+      );
+      return { r, x };
+    });
+    record(
+      r.x.archived === true && r.x.title === "Director of IT",
+      "executive: merge_contacts() archives the loser and applies picks",
+      JSON.stringify(r),
+    );
+  } catch (e) {
+    record(false, "executive: merge_contacts()", (e as PgError).message);
   }
 }
 

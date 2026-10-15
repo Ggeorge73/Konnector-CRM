@@ -1,5 +1,6 @@
-import type { NewRow, Row, TableName, Tables } from "@/lib/domain/types";
-import { matches, type ListOptions, type Store } from "./store";
+import type { DedupeEntity, NewRow, Row, TableName, Tables } from "@/lib/domain/types";
+import { mergeInDataset } from "./merge";
+import { matches, type ListOptions, type MergeArgs, type MergeResult, type Store } from "./store";
 
 export type Dataset = { [T in TableName]: Row<T>[] };
 
@@ -39,6 +40,8 @@ export function emptyDataset(): Dataset {
     "webhook_subscriptions",
     "webhook_deliveries",
     "rate_limits",
+    "import_batches",
+    "duplicate_dismissals",
   ];
   return Object.fromEntries(names.map((n) => [n, []])) as unknown as Dataset;
 }
@@ -88,11 +91,19 @@ export class MemoryStore implements Store {
     return clone(full);
   }
 
+  async insertMany<T extends TableName>(table: T, rows: NewRow<T>[]): Promise<Row<T>[]> {
+    const out: Row<T>[] = [];
+    for (const r of rows) out.push(await this.insert(table, r));
+    return out;
+  }
+
   async update<T extends TableName>(table: T, id: string, patch: Partial<Row<T>>): Promise<Row<T>> {
     const rows = this.data[table] as Row<T>[];
     const idx = rows.findIndex((r) => r.id === id);
     if (idx < 0) throw new Error(`${table} ${id} not found`);
-    rows[idx] = { ...rows[idx], ...clone(patch), id, updated_at: new Date().toISOString() };
+    // Strictly after the previous value, so "edited since created" holds even within the same millisecond.
+    const updated = new Date(Math.max(Date.now(), Date.parse(rows[idx].updated_at) + 1)).toISOString();
+    rows[idx] = { ...rows[idx], ...clone(patch), id, updated_at: updated };
     this.version++;
     return clone(rows[idx]);
   }
@@ -102,6 +113,13 @@ export class MemoryStore implements Store {
     const idx = rows.findIndex((r) => r.id === id);
     if (idx >= 0) rows.splice(idx, 1);
     this.version++;
+  }
+
+  /** Mirrors merge_accounts() / merge_contacts(): synchronous, so all-or-nothing like the SQL transaction. */
+  async merge<E extends DedupeEntity>(entity: E, args: MergeArgs): Promise<MergeResult<E>> {
+    const result = mergeInDataset(this.data, entity, args);
+    this.version++;
+    return clone(result);
   }
 
   /** Test helper: direct access to a table. */

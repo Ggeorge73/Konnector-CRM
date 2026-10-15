@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { navFor } from "@/components/shell/nav";
 import {
+  canManageDataQuality,
   canOpenRoute,
   canSeeBidDecision,
   canSeeConsultantCost,
@@ -43,5 +45,25 @@ describe("role rules", () => {
     expect(canOpenRoute(bd, "/bench/123")).toBe(false);
     expect(canOpenRoute(recruiter, "/bench/123")).toBe(true);
     expect(canOpenRoute(bd, "/accounts/1")).toBe(true);
+  });
+});
+
+describe("data quality (KCRM-77/78)", () => {
+  it("duplicates, merge and the data quality view are for leaders only", () => {
+    for (const u of [admin, exec]) {
+      expect(canManageDataQuality(u)).toBe(true);
+      expect(canOpenRoute(u, "/duplicates")).toBe(true);
+      expect(canOpenRoute(u, "/data-quality")).toBe(true);
+    }
+    for (const u of [bd, recruiter, delivery]) {
+      expect(canManageDataQuality(u)).toBe(false);
+      expect(canOpenRoute(u, "/duplicates")).toBe(false);
+      expect(canOpenRoute(u, "/data-quality")).toBe(false);
+    }
+  });
+
+  it("shows Data quality in the Admin nav for leaders only", () => {
+    expect(navFor("executive").some((n) => n.href === "/data-quality" && n.section === "Admin")).toBe(true);
+    expect(navFor("bd").some((n) => n.href === "/data-quality")).toBe(false);
   });
 });

@@ -573,6 +573,49 @@ export interface RateLimitRow extends BaseRow {
   expires_at: string;
 }
 
+// ---------- PI-3 S10: data onboarding ----------
+
+export const IMPORT_ENTITIES = ["accounts", "contacts", "opportunities"] as const;
+export type ImportEntity = (typeof IMPORT_ENTITIES)[number];
+
+/** Records one import batch created, by table — exactly what Undo archives. */
+export interface ImportCreatedIds {
+  accounts: string[];
+  contacts: string[];
+  opportunities: string[];
+}
+
+/** One committed CSV import: who, when, what, counts and the ids it created (for Undo within 7 days). */
+export interface ImportBatch extends BaseRow {
+  org_id: string;
+  user_id: string;
+  entity: ImportEntity;
+  file_name: string;
+  status: "committed" | "undone";
+  total_rows: number;
+  created_count: number;
+  skipped_count: number;
+  error_count: number;
+  created_ids: ImportCreatedIds;
+  undone_at: string | null;
+  undone_by: string | null;
+}
+
+// ---------- Data quality (KCRM-77) ----------
+
+export const DEDUPE_ENTITIES = ["accounts", "contacts"] as const;
+export type DedupeEntity = (typeof DEDUPE_ENTITIES)[number];
+
+/** A pair a leader marked "not a duplicate". Stored as an unordered pair: record_a < record_b. */
+export interface DuplicateDismissal extends BaseRow {
+  org_id: string;
+  entity: DedupeEntity;
+  record_a: string;
+  record_b: string;
+  dismissed_by: string | null;
+  note: string | null;
+}
+
 export interface Tables {
   organizations: Organization;
   users: User;
@@ -608,6 +651,8 @@ export interface Tables {
   webhook_subscriptions: WebhookSubscription;
   webhook_deliveries: WebhookDelivery;
   rate_limits: RateLimitRow;
+  import_batches: ImportBatch;
+  duplicate_dismissals: DuplicateDismissal;
 }
 
 export type TableName = keyof Tables;
