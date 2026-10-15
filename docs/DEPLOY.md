@@ -67,11 +67,15 @@ The migrations create the private `files` storage bucket and its access rules. N
 5. Vercel Cron reads the schedules from `vercel.json`. It calls each job with `GET` and
    `Authorization: Bearer $CRON_SECRET`.
 
-   | Job                      | Schedule (UTC)                |
-   | ------------------------ | ----------------------------- |
-   | `/api/cron/integrations` | every 5 minutes               |
-   | `/api/cron/mail-sync`    | every 15 minutes              |
-   | `/api/cron/daily`        | 10:55 daily (6:55 am Eastern) |
+   | Job                      | Now (Vercel Hobby, UTC) | After upgrading to Vercel Pro |
+   | ------------------------ | ----------------------- | ----------------------------- |
+   | `/api/cron/integrations` | 10:15 daily             | `*/5 * * * *` (every 5 min)   |
+   | `/api/cron/mail-sync`    | 10:35 daily             | `*/15 * * * *` (every 15 min) |
+   | `/api/cron/daily`        | 10:55 daily             | unchanged                     |
+
+   Hobby **refuses every deployment** whose `vercel.json` schedules a job more than once a day, so the file
+   ships with daily schedules. When the team moves to Pro, change the first two schedules in `vercel.json`
+   to the values in the last column.
 
 ### 3. GitHub: environments for the Deploy workflow
 

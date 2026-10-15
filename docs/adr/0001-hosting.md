@@ -107,10 +107,13 @@ What Free means until the gate:
 - **Pausing.** Supabase pauses idle Free projects. The 5-minute integrations cron keeps staging awake; if a
   project does pause, resume it from the dashboard.
 - **Limits.** 500 MB database and 1 GB file storage per project, ample for the pilot.
-- **Vercel Hobby crons.** Hobby runs scheduled jobs at most once a day. Until the team is on Pro, the Konnect
-  Hub retry and mail-sync jobs run daily (or are triggered by hand). Nothing breaks; updates are just slower.
+- **Vercel Hobby crons.** Hobby runs scheduled jobs at most once a day, and it **rejects any deployment**
+  whose `vercel.json` asks for more (found on 2026-10-15). So `vercel.json` schedules all three jobs daily
+  until the team is on Pro. Konnect Hub retries and mail sync are then daily, or run by hand with the cron
+  secret. Nothing breaks; updates are just slower.
 
-The upgrade is a plan change in each dashboard. No migration or code change is needed.
+The Supabase upgrade is a plan change in the dashboard. For Vercel Pro, also restore the 5- and 15-minute
+schedules in `vercel.json` (see `docs/DEPLOY.md`).
 
 Setup steps: `docs/DEPLOY.md`.
 
