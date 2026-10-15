@@ -17,11 +17,12 @@ migrations always run before the code that needs them.
 Work through these in order. No secret ever goes in the repository. Each one lives in Supabase, Vercel or
 GitHub.
 
-### 1. Supabase: two Pro projects
+### 1. Supabase: two projects (Free now, production to Pro at go-live)
 
-1. Create projects `konnector-crm-staging` and `konnector-crm-prod` in region **East US (N. Virginia)**, on
-   the Pro plan.
-2. Production only: **Database → Backups**. Daily backups are on with Pro. Turn on **Point-in-time recovery**.
+1. In a Supabase organisation called **Konnector LLC**, create projects `konnector-crm-staging` and
+   `konnector-crm-prod` in region **East US (N. Virginia)**. The Free plan is fine for now (ADR 0001 amendment).
+2. **Go-live gate:** before real pipeline data is imported, upgrade the organisation to **Pro**. Then, on
+   production, turn on **Database → Backups → Point-in-time recovery**. Free has no backups.
 3. **Authentication → Providers**:
    - Turn on **Google**, using a Google Cloud OAuth client of type "Web application".
    - Turn on **Email** (magic link). Turn off email sign-up with password.

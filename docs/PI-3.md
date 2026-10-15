@@ -33,12 +33,12 @@ KCRM-67, is the hosting decision; the rest of S9 waits on it.
 
 ## Decisions the Product Owner owns (expensive to undo)
 
-| Decision                        | Options                                                    | Recommendation                                                                       |
-| ------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Hosting                         | Vercel · Netlify · container on Fly.io / Azure App Service | **Vercel**: native Next.js, preview deploys per PR, built-in cron for the three jobs |
-| Supabase plan                   | Free · Pro · Team                                          | **Pro**: daily backups, point-in-time recovery add-on, no pausing                    |
-| Production auth                 | Google only · Google + Microsoft · magic link fallback     | **Google + magic link** restricted to `konnectorllc.com` (what is built today)       |
-| E-signature / accounting (PI-4) | DocuSign · Dropbox Sign; QuickBooks Online · Xero          | Decide at the PI-3 system demo, after the pilot shows where the friction is          |
+| Decision                        | Options                                                    | Recommendation                                                                               |
+| ------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Hosting                         | Vercel · Netlify · container on Fly.io / Azure App Service | **Vercel**: native Next.js, preview deploys per PR, built-in cron for the three jobs         |
+| Supabase plan                   | Free · Pro · Team                                          | **Decided:** Free for staging and the pilot, production to **Pro** before go-live (ADR 0001) |
+| Production auth                 | Google only · Google + Microsoft · magic link fallback     | **Google + magic link** restricted to `konnectorllc.com` (what is built today)               |
+| E-signature / accounting (PI-4) | DocuSign · Dropbox Sign; QuickBooks Online · Xero          | Decide at the PI-3 system demo, after the pilot shows where the friction is                  |
 
 ## Dependencies
 
