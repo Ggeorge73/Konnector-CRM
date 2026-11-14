@@ -98,6 +98,28 @@ Always JSON: `{ "error": { "code": "…", "message": "…", "details": … } }`.
 `take_rate_limit()`, service role) in Supabase mode, so they hold across server instances; in memory for the demo
 backend and tests. Keys whose owner is archived or back to pending access are refused (`401`).
 
+## Inbound: website enquiries
+
+The REST resources above can't take a raw web enquiry: `POST /accounts` and `POST /opportunities` require classification
+the form doesn't collect (account type, tier, country; opportunity kind, value, service lines), and they run as a person's
+API key. konnectortech.com therefore has its own signed endpoint outside `/api/v1`:
+
+```
+POST /api/integrations/website-enquiry
+X-Konnector-Signature: sha256=<hex HMAC-SHA256(LEAD_WEBHOOK_SECRET, raw body)>
+
+{ "event": "website.enquiry", "stage": "signal", "source": "inbound",
+  "lead": { "name", "email", "organization", "sector", "message", "deadline", "receivedAt", "page" } }
+→ 200 { "ok": true, "account_id": "…", "contact_id": "…", "opportunity_id": "…",
+        "account_created": true, "contact_created": true }
+```
+
+It finds or creates the account and contact, and creates one Signal-stage, `inbound` opportunity with the enquiry on its
+timeline. It is idempotent on `receivedAt` + `email` (a repeat returns `"idempotent_replay": true`), uses no API key and
+is not rate-limited per key; the signature is the only way in. Payload, status codes and the defaults applied to the
+required fields are in `docs/INTEGRATION.md` → "Website enquiries". The resulting records are ordinary accounts,
+contacts and opportunities, so they appear in `/api/v1` lists and fire `account.created` / `opportunity.created` webhooks.
+
 ## Outbound webhooks
 
 Admins manage subscriptions on `/developer` (`webhook_subscriptions`, admin-only by RLS). Each subscription has a URL
@@ -154,6 +176,8 @@ it and keeps the last 50 bodies (`GET` to list, `DELETE` to clear). Point a subs
   rate limit, error shapes.
 - `src/lib/__tests__/webhooks.test.ts` — signatures, backoff and retries, inactive subscriptions, forbidden keys,
   failures never reaching the caller.
+- `src/lib/__tests__/website-leads.test.ts` — the inbound website-enquiry endpoint: signature rejection, validation,
+  idempotency, created records and defaults.
 - `e2e/developer.spec.ts` — create a key in the UI and call `/api/v1/accounts` with it; create a webhook and send a test
   event to the echo receiver.
 - `scripts/rls-test.ts` — RLS and column secrecy for `api_keys`, `webhook_subscriptions`, `webhook_deliveries` (and the

@@ -260,3 +260,22 @@ Notes / inspect & adapt:
 - The loser's `konnect_hub_client_id` is cleared on archive so Hub lookups resolve to one account; the audit snapshot keeps it.
 - Detection runs in the app over all active accounts/contacts (fine for thousands of rows); move it to `pg_trgm` in SQL if
   the book grows much larger.
+
+## Website enquiries → Signal opportunities
+
+Delivered:
+
+- `POST /api/integrations/website-enquiry` for konnectortech.com (`pushLead`): `sha256=<hex>` HMAC of the raw body with
+  `LEAD_WEBHOOK_SECRET`, Zod validation, idempotent on `receivedAt` + `email` via `integration_events`.
+- `src/lib/services/website-leads.ts`: find-or-create the account (normalised name) and contact (email), always create a
+  Signal / `inbound` opportunity, enquiry text as a timeline note, audit (`website_enquiry.received`) and an alert to
+  the owner. Defaults for the required classification fields live in `WEBSITE_LEAD_DEFAULTS`.
+- Docs: `docs/INTEGRATION.md` (contract, defaults), `docs/API.md`, `docs/SECURITY.md` (rotation), `docs/DEPLOY.md`,
+  `.env.example`. Tests: `src/lib/__tests__/website-leads.test.ts`.
+
+Notes / inspect & adapt:
+
+- The website signature has no timestamp, so a captured request can be replayed, but only to get the idempotent reply.
+- A suffix-insensitive name match can attach an enquiry to the wrong same-named organization; `/duplicates` and the
+  enquiry note make that easy to spot and move.
+- The website does not retry a failed push (the lead is already stored and emailed there).
