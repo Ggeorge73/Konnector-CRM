@@ -126,6 +126,17 @@ links sent to the Hub. Only one secret is accepted at a time, so coordinate a sh
 Follow-up (not built): accept a `KONNECTOR_INTEGRATION_SECRET_PREVIOUS` on inbound verification for zero-downtime
 rotation.
 
+### LEAD_WEBHOOK_SECRET
+
+Shared HMAC secret with konnectortech.com for `POST /api/integrations/website-enquiry` (`docs/INTEGRATION.md`). Only one
+value is accepted at a time. Nothing is lost during a mismatch: the website stores and emails every enquiry before it
+pushes, and only logs a failed push.
+
+1. Generate a new value (`openssl rand -hex 32`); set `LEAD_WEBHOOK_SECRET` in the website's Cloudflare Pages env and in
+   the CRM env; redeploy both.
+2. Enquiries pushed in the gap get `401` here. Add those by hand from the notification emails (or re-send them signed
+   with the new secret; the endpoint is idempotent).
+
 ### APP_ENCRYPTION_KEY
 
 AES-256-GCM key (32 bytes, **base64**: `openssl rand -base64 32`) for secrets at rest: mailbox OAuth tokens

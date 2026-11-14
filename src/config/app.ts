@@ -11,6 +11,10 @@ export const env = {
   konnectHubWebUrl: process.env.KONNECT_HUB_WEB_URL ?? "https://hub.konnectorllc.com",
   integrationSecret: process.env.KONNECTOR_INTEGRATION_SECRET ?? "dev-only-shared-secret",
   mockKonnectHub: process.env.MOCK_KONNECT_HUB !== "false",
+  /** Same value as LEAD_WEBHOOK_SECRET on konnectortech.com. No default: unset means the endpoint refuses everything. */
+  leadWebhookSecret: process.env.LEAD_WEBHOOK_SECRET ?? "",
+  /** Optional: who owns accounts/deals created from website enquiries. Default: the longest-standing admin. */
+  leadDefaultOwnerEmail: process.env.LEAD_DEFAULT_OWNER_EMAIL ?? "",
 };
 
 export function isDemo() {

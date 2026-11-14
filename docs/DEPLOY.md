@@ -43,19 +43,20 @@ The migrations create the private `files` storage bucket and its access rules. N
    (`iad1`, next to Supabase).
 2. Under **Settings → Environment Variables**, set the variables listed in `.env.example`:
 
-   | Variable                                               | Production                | Preview, branch `staging` | Preview (all other branches) |
-   | ------------------------------------------------------ | ------------------------- | ------------------------- | ---------------------------- |
-   | `DATA_BACKEND`, `NEXT_PUBLIC_DATA_BACKEND`             | `supabase`                | `supabase`                | `demo`                       |
-   | Supabase URL / anon / service role                     | prod project              | staging project           | not set                      |
-   | `APP_URL`                                              | production URL            | staging URL               | not set                      |
-   | `ALLOWED_EMAIL_DOMAIN`                                 | `konnectorllc.com`        | `konnectorllc.com`        | `konnectorllc.com`           |
-   | `CRON_SECRET`                                          | random, 32+ bytes         | different random value    | not set                      |
-   | `APP_ENCRYPTION_KEY`                                   | `openssl rand -base64 32` | different value           | not set                      |
-   | `KONNECTOR_INTEGRATION_SECRET`, `KONNECT_HUB_BASE_URL` | from Konnect Hub (S11)    | Konnect Hub staging       | not set                      |
-   | `MOCK_KONNECT_HUB`                                     | not set                   | `true` until S11          | `true`                       |
-   | `ALLOW_DEMO_RESET`                                     | **never**                 | **never**                 | `true`                       |
-   | `ANTHROPIC_API_KEY`                                    | set to enable Copilot     | optional                  | not set (demo answers)       |
-   | Google / Microsoft OAuth for mail sync                 | set (`docs/MAIL.md`)      | optional                  | not set                      |
+   | Variable                                                      | Production                    | Preview, branch `staging`  | Preview (all other branches) |
+   | ------------------------------------------------------------- | ----------------------------- | -------------------------- | ---------------------------- |
+   | `DATA_BACKEND`, `NEXT_PUBLIC_DATA_BACKEND`                    | `supabase`                    | `supabase`                 | `demo`                       |
+   | Supabase URL / anon / service role                            | prod project                  | staging project            | not set                      |
+   | `APP_URL`                                                     | production URL                | staging URL                | not set                      |
+   | `ALLOWED_EMAIL_DOMAIN`                                        | `konnectorllc.com`            | `konnectorllc.com`         | `konnectorllc.com`           |
+   | `CRON_SECRET`                                                 | random, 32+ bytes             | different random value     | not set                      |
+   | `APP_ENCRYPTION_KEY`                                          | `openssl rand -base64 32`     | different value            | not set                      |
+   | `KONNECTOR_INTEGRATION_SECRET`, `KONNECT_HUB_BASE_URL`        | from Konnect Hub (S11)        | Konnect Hub staging        | not set                      |
+   | `LEAD_WEBHOOK_SECRET` (+ optional `LEAD_DEFAULT_OWNER_EMAIL`) | shared with konnectortech.com | different value or not set | not set                      |
+   | `MOCK_KONNECT_HUB`                                            | not set                       | `true` until S11           | `true`                       |
+   | `ALLOW_DEMO_RESET`                                            | **never**                     | **never**                  | `true`                       |
+   | `ANTHROPIC_API_KEY`                                           | set to enable Copilot         | optional                   | not set (demo answers)       |
+   | Google / Microsoft OAuth for mail sync                        | set (`docs/MAIL.md`)          | optional                   | not set                      |
 
    "Preview, branch `staging`" means a branch-scoped preview variable. The Deploy workflow pulls these for
    staging builds.

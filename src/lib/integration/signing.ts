@@ -28,3 +28,20 @@ export function verify(
   if (given.length !== expected.length || !timingSafeEqual(given, expected)) return { ok: false, reason: "bad signature" };
   return { ok: true };
 }
+
+/**
+ * Plain body signature used by the konnectortech.com website: `sha256=<hex HMAC-SHA256(secret, raw body)>`.
+ * There is no timestamp, so the receiver must be idempotent (see services/website-leads.ts).
+ */
+export function signBody(body: string, secret: string): string {
+  return `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
+}
+
+export function verifyBody(body: string, header: string | null, secret: string): { ok: true } | { ok: false; reason: string } {
+  if (!header) return { ok: false, reason: "missing signature" };
+  const m = /^sha256=([0-9a-f]{64})$/i.exec(header.trim());
+  if (!m) return { ok: false, reason: "malformed signature" };
+  const expected = createHmac("sha256", secret).update(body).digest();
+  if (!timingSafeEqual(Buffer.from(m[1], "hex"), expected)) return { ok: false, reason: "bad signature" };
+  return { ok: true };
+}
